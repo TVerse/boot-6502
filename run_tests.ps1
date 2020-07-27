@@ -1,0 +1,1 @@
+cargo test -p boot -p lib-gpio --target=x86_64-pc-windows-msvc

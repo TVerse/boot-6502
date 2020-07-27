@@ -7,22 +7,27 @@ use anyhow::Error;
 use anyhow::Result;
 use lib_gpio::*;
 
+pub fn boot<I: ReadableGpioPin, O: WritableGpioPin, B: ReadableGpioPin + WritableGpioPin>(pin_config: PinConfig<I, O, B>) -> Result<()> {
+    Ok(())
+}
+
 pub struct PinConfig<I, O, B>
     where I: ReadableGpioPin, O: WritableGpioPin, B: WritableGpioPin + ReadableGpioPin
 {
-    incoming_handshake: I,
-    outgoing_handshake: O,
+    handshakes: Handshakes<I, O>,
     data: [B; 4],
 }
 
 impl<I: ReadableGpioPin, O: WritableGpioPin, B: WritableGpioPin + ReadableGpioPin> PinConfig<I, O, B> {
     pub fn new(incoming_handshake: I, outgoing_handshake: O, data: [B; 4]) -> PinConfig<I, O, B> {
-        PinConfig { incoming_handshake, outgoing_handshake, data }
+        PinConfig { handshakes: Handshakes { incoming_handshake, outgoing_handshake }, data }
     }
 }
 
-pub fn boot<I: ReadableGpioPin, O: WritableGpioPin, B: ReadableGpioPin + WritableGpioPin>(pin_config: PinConfig<I, O, B>) -> Result<()> {
-    Ok(())
+struct Handshakes<I, O>
+    where I: ReadableGpioPin, O: WritableGpioPin {
+    incoming_handshake: I,
+    outgoing_handshake: O,
 }
 
 struct Nibble(u8);
@@ -54,16 +59,86 @@ impl From<&Nibble> for [PinValue; 4] {
     }
 }
 
-fn read_nibble<I: ReadableGpioPin>(input_pins: &[I; 4]) -> Result<Nibble> {
-    // let res = input_pins.iter().map(ReadableGpioPin::read_pin).collect()?;
-    // Ok(Nibble::from(&res))
-    todo!()
+struct ReadPins<'a, I, O>
+    where I: ReadableGpioPin, O: WritableGpioPin {
+    handshakes: Handshakes<I, O>,
+    data: &'a [I; 4],
 }
 
-fn write_nibble<O: WritableGpioPin>(nibble: &Nibble, output_pins: &[O; 4]) -> Result<()> {
+impl<'a, I: ReadableGpioPin, O: WritableGpioPin> ReadPins<'a, I, O> {
+    pub fn read_byte(&self) -> Result<u8> {
+        let n1 = self.read_nibble()?;
+        let n2 = self.read_nibble()?;
+        Ok((n1.0 << 4) | n2.0)
+    }
+
+    fn read_nibble(&self) -> Result<Nibble> {
+        self.handshakes.outgoing_handshake.write_pin(PinValue::High)?;
+        loop {
+            if let Ok(PinValue::Low) = self.handshakes.incoming_handshake.read_pin() {
+                break;
+            }
+        }
+        let res = read_nibble_data(self.data)?;
+        self.handshakes.outgoing_handshake.write_pin(PinValue::Low)?;
+        Ok(res)
+    }
+}
+
+fn read_nibble_data<I: ReadableGpioPin>(input_pins: &[I; 4]) -> Result<Nibble> {
+    let mut res = [PinValue::Low; 4];
+    for i in 0..4 {
+        res[i] = ReadableGpioPin::read_pin(&input_pins[i])?
+    }
+    Ok(Nibble::from(&res))
+}
+
+struct WritePins<'a, I, O>
+    where I: ReadableGpioPin, O: WritableGpioPin {
+    handshakes: Handshakes<I, O>,
+    data: &'a [O; 4],
+}
+
+impl<'a, I: ReadableGpioPin, O: WritableGpioPin> WritePins<'a, I, O> {
+    pub fn write_byte(&self, byte: u8) -> Result<()> {
+        let n1 = Nibble::try_from(byte << 4)?;
+        let n2 = Nibble::try_from(byte & 0xF)?;
+        self.write_nibble(&n1)?;
+        self.write_nibble(&n2)?;
+        Ok(())
+    }
+
+    fn write_nibble(&self, nibble: &Nibble) -> Result<()> {
+        write_nibble_data(nibble, self.data)?;
+        self.handshakes.outgoing_handshake.write_pin(PinValue::Low)?;
+        loop {
+            if let Ok(PinValue::Low) = self.handshakes.incoming_handshake.read_pin() {
+                break;
+            }
+        }
+        self.handshakes.outgoing_handshake.write_pin(PinValue::High)?;
+        Ok(())
+    }
+
+}
+
+fn write_nibble_data<O: WritableGpioPin>(nibble: &Nibble, output_pins: &[O; 4]) -> Result<()> {
     let pin_values: [PinValue; 4] = nibble.into();
-    for (&value, pin) in pin_values.into_iter().zip(output_pins.into_iter()) {
+    for (&value, pin) in pin_values.iter().zip(output_pins.into_iter()) {
         pin.write_pin(value)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_success() {
+
+    }
+
+    #[test]
+    fn test_fail() {
+        panic!("Expected")
+    }
 }
