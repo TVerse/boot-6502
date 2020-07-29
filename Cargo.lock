@@ -24,7 +24,9 @@ dependencies = [
 name = "boot-6502"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "boot",
+ "gpio-cdev",
  "lib-gpio",
  "lib-gpio-real",
 ]
@@ -63,6 +65,7 @@ dependencies = [
 name = "lib-gpio-real"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "gpio-cdev",
  "lib-gpio",
 ]

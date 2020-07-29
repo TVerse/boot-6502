@@ -6,19 +6,22 @@ reset:
   STZ INITIALIZATION_DONE
   LITERAL waiting
   JSR print_string_stack
-loop:
-  WAI
-  JMP loop
-
-waiting:
-  .asciiz "Reading buttons"
+  .read_buttons:
+    JSR read_buttons
+    BEQ .read_buttons
+  LDA #%00000001
+  JSR lcd_instruction
+  .loop:
+    JSR read_byte
+    JSR print_char
+    JMP .loop
 
 nmi:
 irq:
-  JSR read_buttons
-  ASL
-  STA PORTA
   RTI
+
+waiting:
+  .asciiz "Press when ready"
 
   .org PROGRAM_NMI_VECTOR
   .word nmi
