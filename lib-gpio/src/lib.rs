@@ -1,5 +1,3 @@
-use anyhow::Result;
-
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum PinValue {
     High,
@@ -25,9 +23,13 @@ impl PinValue {
 }
 
 pub trait WritableGpioPin {
-    fn write_pin(&self, value: PinValue) -> Result<()>;
+    type Error;
+
+    fn write_pin(&self, value: PinValue) -> Result<(), Self::Error>;
 }
 
 pub trait ReadableGpioPin {
-    fn read_pin(&self) -> Result<PinValue>;
+    type Error;
+
+    fn read_pin(&self) -> Result<PinValue, Self::Error>;
 }

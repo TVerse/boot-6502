@@ -1,28 +1,46 @@
+#![feature(associated_type_bounds)]
+
 use std::cell::RefCell;
+use std::error;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use std::thread::sleep;
+use std::time::Duration;
 
 use anyhow::Result;
 use boot;
-use boot::protocol::parallel::ParallelProtocol;
-use gpio_cdev;
 use lib_gpio;
-use lib_gpio_real::GpioPin;
-use std::sync::{Arc, Mutex};
+use lib_gpio::{PinValue, ReadableGpioPin, WritableGpioPin};
+use lib_gpio_real::{RpiChip, RpiReadableGpioPin, RpiWritableGpioPin};
 
-fn main() {
-    execute().unwrap()
+use gpio_cdev;
+
+fn main() -> Result<()> {
+    let cdev_chip: gpio_cdev::Chip = gpio_cdev::Chip::new("/dev/gpiochip0")?;
+    let mut rpi_chip = RpiChip::new(cdev_chip, "6502".to_owned());
+    let readable_line = RpiReadableGpioPin::new(&mut rpi_chip, 17)?;
+    let writeable_line = RpiWritableGpioPin::new(&mut rpi_chip, 27)?;
+    test_echo(&readable_line, &writeable_line)?;
+    unreachable!()
 }
 
-fn execute() -> Result<()> {
-    let chip = gpio_cdev::Chip::new("/dev/gpiochip0")?;
-    let chip = Arc::new(Mutex::new(chip));
-    let handshake_incoming = GpioPin::new(chip.clone(), 11);
-    let handshake_outgoing = GpioPin::new(chip.clone(), 22);
-    let data_0 = GpioPin::new(chip.clone(), 0);
-    let data_1 = GpioPin::new(chip.clone(), 1);
-    let data_2 = GpioPin::new(chip.clone(), 2);
-    let data_3 = GpioPin::new(chip.clone(), 3);
-    let data = [data_0, data_1, data_2, data_3];
-    let protocol = ParallelProtocol::new(handshake_incoming, handshake_outgoing, data);
-    boot::boot(protocol)
+fn test_echo<
+    I: ReadableGpioPin<Error: error::Error + Send + Sync + 'static>,
+    O: WritableGpioPin<Error: error::Error + Send + Sync + 'static>,
+>(
+    i: &I,
+    o: &O,
+) -> Result<()> {
+    let mut cur_value = PinValue::High;
+    loop {
+        cur_value = match cur_value {
+            PinValue::High => PinValue::Low,
+            PinValue::Low => PinValue::High,
+        };
+        o.write_pin(cur_value)?;
+        sleep(Duration::from_secs(2));
+        let read = i.read_pin()?;
+        println!("{}", cur_value == read);
+        sleep(Duration::from_secs(2));
+    }
 }

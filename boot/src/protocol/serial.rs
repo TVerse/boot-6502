@@ -8,7 +8,10 @@ use lib_gpio::*;
 use crate::protocol::Protocol;
 
 pub struct SerialProtocol<I, O>
-    where I: ReadableGpioPin, O: WritableGpioPin {
+where
+    I: ReadableGpioPin,
+    O: WritableGpioPin,
+{
     clock: I,
     input_pin: I,
     output_pin: O,

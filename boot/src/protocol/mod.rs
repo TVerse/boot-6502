@@ -1,6 +1,5 @@
 use anyhow::Result;
 
-pub mod parallel;
 pub mod serial;
 
 pub trait Protocol {

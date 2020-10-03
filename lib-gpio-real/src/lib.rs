@@ -1,60 +1,55 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use gpio_cdev;
+use gpio_cdev::{LineHandle, LineRequestFlags};
+use lib_gpio;
+use lib_gpio::{PinValue, ReadableGpioPin, WritableGpioPin};
+use thiserror::Error;
 
-use anyhow::Result;
-use gpio_cdev::*;
-use lib_gpio::*;
-use std::sync::{Arc, Mutex};
+use crate::GpioError::PinAlreadyInUseError;
 
-pub struct GpioPin {
-    chip: Arc<Mutex<Chip>>,
-    pin: u32,
-    handle: RefCell<Option<(PinState, LineHandle)>>,
+pub struct RpiChip {
+    inner: gpio_cdev::Chip,
+    in_use_pins: Vec<u32>,
+    consumer: String,
 }
 
-#[derive(Clone, Copy, Debug)]
-enum PinState {
-    INPUT,
-    OUTPUT,
-}
-
-impl GpioPin {
-    pub fn new(chip: Arc<Mutex<Chip>>, pin: u32) -> GpioPin {
-        GpioPin { chip, pin, handle: RefCell::new(None) }
-    }
-
-    fn ensure_readable(&self) -> Result<()> {
-        let mut h = self.handle.borrow_mut();
-        if let Some(PinState::INPUT) = h.as_ref().map(|x| x.0) {
-            return Ok(());
+impl RpiChip {
+    pub fn new(cdev_chip: gpio_cdev::Chip, consumer: String) -> Self {
+        Self {
+            inner: cdev_chip,
+            in_use_pins: Vec::with_capacity(8),
+            consumer,
         }
-        let mut chip = self.chip.lock().unwrap();
-        let handle = chip
-            .get_line(self.pin)?
-            .request(LineRequestFlags::INPUT, 0, format!("read_pin_{}", self.pin).as_str())?;
-        *h = Some((PinState::INPUT, handle));
-        Ok(())
-    }
-
-    fn ensure_writeable(&self) -> Result<()> {
-        let mut h = self.handle.borrow_mut();
-        if let Some(PinState::OUTPUT) = h.as_ref().map(|x| x.0) {
-            return Ok(());
-        }
-        let mut chip = self.chip.lock().unwrap();
-        let handle = chip
-            .get_line(self.pin)?
-            .request(LineRequestFlags::OUTPUT, 0, format!("read_pin_{}", self.pin).as_str())?;
-        *h = Some((PinState::OUTPUT, handle));
-        Ok(())
     }
 }
 
-impl ReadableGpioPin for GpioPin {
-    fn read_pin(&self) -> Result<PinValue> {
-        self.ensure_readable()?;
-        let result = self.handle.borrow().as_ref().unwrap().1.get_value()?;
-        if result == 0 {
+#[derive(Error, Debug)]
+pub enum GpioError {
+    #[error("Pin {} already in use", .pin)]
+    PinAlreadyInUseError {
+        pin: u32
+    },
+    #[error(transparent)]
+    GpioCdevError {
+        #[from]
+        source: gpio_cdev::errors::Error,
+    },
+}
+
+pub struct RpiReadableGpioPin {
+    handle: LineHandle,
+}
+
+impl RpiReadableGpioPin {
+    pub fn new(chip: &mut RpiChip, pin: u32) -> Result<Self, GpioError> {
+        Ok(Self { handle: get_handle(chip, pin, LineRequestFlags::INPUT)? })
+    }
+}
+
+impl ReadableGpioPin for RpiReadableGpioPin {
+    type Error = GpioError;
+
+    fn read_pin(&self) -> Result<PinValue, Self::Error> {
+        if self.handle.get_value()? == 0 {
             Ok(PinValue::Low)
         } else {
             Ok(PinValue::High)
@@ -62,13 +57,39 @@ impl ReadableGpioPin for GpioPin {
     }
 }
 
-impl WritableGpioPin for GpioPin {
-    fn write_pin(&self, value: PinValue) -> Result<()> {
-        self.ensure_writeable()?;
-        let value = match value {
-            PinValue::High => 1,
-            PinValue::Low => 0,
+pub struct RpiWritableGpioPin {
+    handle: LineHandle,
+}
+
+impl RpiWritableGpioPin {
+    pub fn new(chip: &mut RpiChip, pin: u32) -> Result<Self, GpioError> {
+        Ok(Self { handle: get_handle(chip, pin, LineRequestFlags::OUTPUT)? })
+    }
+}
+
+impl WritableGpioPin for RpiWritableGpioPin {
+    type Error = GpioError;
+
+    fn write_pin(&self, value: PinValue) -> Result<(), Self::Error> {
+        let val = if value == PinValue::Low {
+            0
+        } else {
+            1
         };
-        Ok(self.handle.borrow().as_ref().unwrap().1.set_value(value)?)
+        Ok(self.handle.set_value(val)?)
+    }
+}
+
+fn get_handle(chip: &mut RpiChip, pin: u32, flags: LineRequestFlags) -> Result<LineHandle, GpioError> {
+    if chip.in_use_pins.contains(&pin) {
+        Err(PinAlreadyInUseError { pin })
+    } else {
+        let handle = chip.inner.get_line(pin)?.request(
+            flags,
+            0,
+            chip.consumer.as_str(),
+        )?;
+        chip.in_use_pins.push(pin);
+        Ok(handle)
     }
 }

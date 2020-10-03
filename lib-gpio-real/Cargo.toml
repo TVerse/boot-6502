@@ -8,5 +8,5 @@ edition = "2018"
 
 [dependencies]
 lib-gpio = { path = "../lib-gpio" }
-gpio-cdev = "0.3.0"
-anyhow = "1.0.31"
+gpio-cdev = "0.4.0"
+thiserror = "1.0.20"
