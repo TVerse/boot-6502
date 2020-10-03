@@ -32,7 +32,7 @@ loop:
   LDA SHIFT_READY
   BEQ loop
   STZ SHIFT_READY
-  LDA SR
+  LDA SHIFTED_BYTE
   JSR print_char
   JMP loop
 
@@ -55,6 +55,8 @@ irq:
     JSR toggle_led
     LDA #1
     STA SHIFT_READY
+    LDA SR
+    STA SHIFTED_BYTE
   .buttons:
     ;JSR read_buttons
     ;ASL
