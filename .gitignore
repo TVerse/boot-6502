@@ -4,3 +4,4 @@
 *.lst
 */target
 */Cargo.lock
+*.vim

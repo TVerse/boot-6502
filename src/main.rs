@@ -38,9 +38,9 @@ fn test_echo<
             PinValue::Low => PinValue::High,
         };
         o.write_pin(cur_value)?;
-        sleep(Duration::from_secs(2));
+        sleep(Duration::from_secs(1));
         let read = i.read_pin()?;
-        println!("{}", cur_value == read);
-        sleep(Duration::from_secs(2));
+        println!("{:?}, {:?}, {}", cur_value, read, cur_value == read);
+        sleep(Duration::from_secs(1));
     }
 }

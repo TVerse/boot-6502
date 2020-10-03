@@ -1,10 +1,6 @@
   .include constants.s
 
   .org ROM_START_ADDR
-
-jump_table:
-
-
   .include stack.s
   .include peripherals.s
 
@@ -67,7 +63,7 @@ reset_base:
 
   STZ PORTA
 
-  LITERAL 400
+  LITERAL 100
   JSR delay
 
   LDA #%00000001
@@ -103,8 +99,8 @@ enable_timer:
   POP
 
   LDA ACR
-  AND #$7F
-  ORA #$40
+  AND #%01111111
+  ORA #%01000000
   STA ACR
   
   LDA #%11000000
@@ -160,7 +156,7 @@ delay:
   ADC 1, X
   STA 1, X
   .loop:
-    wai
+    WAI
     LDA 0, X
     CMP FIVE_MILLISECOND_COUNTER_ADDR
     BNE .loop

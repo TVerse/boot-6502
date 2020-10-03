@@ -32,7 +32,7 @@ PROGRAM_IRQ_VECTOR = $FFF4
 
 FIVE_MILLISECOND_COUNTER_ADDR = $3FFE ; 16 bit
 
-; 8 bit, zero if done, FF if not. To be set to zero by user. Used in base irq routine, functions as user-only cli.
+; 8 bit, positive or zero if done, negative if not. To be set to zero by user. Used in base irq routine, functions as user-only cli.
 INITIALIZATION_DONE = $3FF0 
 BUTTON_STATE_ADDR = $3FFB ; 0000udlr
 
