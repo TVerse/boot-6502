@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::thread::sleep;
 use std::time::Duration;
 
+use anyhow::anyhow;
 use anyhow::Result;
 // use boot;
 use gpio_cdev;
@@ -49,7 +50,7 @@ fn test_shift(mut cdev_chip: Chip) -> Result<()> {
     let data_handle = data_line.request(LineRequestFlags::OUTPUT, 0, "data")?;
 
     let mut count = 0;
-    let mut last_ts = 0;
+    let mut last_ts = None;
 
     loop {
         let mut data: u8 = 0x41; // 'A'
@@ -70,9 +71,14 @@ fn test_shift(mut cdev_chip: Chip) -> Result<()> {
         });
         for event in clock_events.take(8) {
             let evt = event?;
-            let diff = evt.timestamp() - last_ts;
-            last_ts = evt.timestamp();
-            println!("Got event {:?}, diff: {}", evt, diff);
+            let diff = last_ts.map(|ts| evt.timestamp() - ts);
+            last_ts = Some(evt.timestamp());
+            println!("Got event {:?}, diff: {:?}", evt, diff);
+            //  if let Some(d) = diff {
+            //      if d > 700000 {
+            //          return Err(anyhow!("Too high diff, missed a bit: {}", d));
+            //      };
+            //  };
             let to_write = data & 0x80;
             data = data << 1;
             println!("Writing {}, left over: {:#b}", to_write, data);

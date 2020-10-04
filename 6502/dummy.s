@@ -21,8 +21,8 @@ reset:
   LDA #$FF
   STA T2CL
   LDA ACR
-  AND #%11100111
-  ORA #%00000100
+  AND #%11101111
+  ORA #%00001100
   STA ACR
   LDA #%10000100
   STA IER
@@ -35,7 +35,18 @@ loop:
   STZ SHIFT_READY
   LDA SHIFTED_BYTE
   JSR print_char
-  JMP loop
+  LDA SHIFTED_BYTE
+  CMP #"A"
+  BNE .error
+  .continue:
+    JMP loop
+  .error:
+    JSR sr_error
+
+sr_error:
+  STZ SHIFTED_BYTE + 1
+  LITERAL SHIFTED_BYTE
+  JMP error
 
 toggle_led:
   LDA PORTA
