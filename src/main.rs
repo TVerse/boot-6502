@@ -9,7 +9,7 @@ use anyhow::Result;
 use gpio_cdev;
 // use lib_gpio;
 // use lib_gpio::{Chip, PinValue, ReadableGpioPin, WritableGpioPin};
-use gpio_cdev::{Chip, EventRequestFlags, LineRequestFlags};
+use gpio_cdev::{Chip, EventRequestFlags, LineRequestFlags, LineEvent, EventType};
 // use lib_gpio_real::{RpiChip, RpiReadableGpioPin, RpiWritableGpioPin};
 
 fn main() -> Result<()> {
@@ -51,6 +51,7 @@ fn test_shift(mut cdev_chip: Chip) -> Result<()> {
 
     let mut count = 0;
     let mut last_ts = None;
+    let mut last_type = None;
 
     loop {
         let mut data: u8 = 0x41; // 'A'
@@ -58,7 +59,7 @@ fn test_shift(mut cdev_chip: Chip) -> Result<()> {
 
         let clock_events = clock_line.events(
             LineRequestFlags::INPUT,
-            EventRequestFlags::FALLING_EDGE,
+            EventRequestFlags::BOTH_EDGES,
             "clock",
         )?;
         use std::sync::Mutex;
@@ -71,18 +72,25 @@ fn test_shift(mut cdev_chip: Chip) -> Result<()> {
         });
         for event in clock_events.take(8) {
             let evt = event?;
+            let eq = last_type.map(|t| t == evt.event_type());
+            last_type = Some(evt.event_type());
             let diff = last_ts.map(|ts| evt.timestamp() - ts);
             last_ts = Some(evt.timestamp());
             println!("Got event {:?}, diff: {:?}", evt, diff);
+            if let Some(false) = eq {
+                return Err(anyhow!("Expected {:?}, got {:?}", last_type.unwrap(), evt.event_type()))
+            };
             //  if let Some(d) = diff {
             //      if d > 700000 {
             //          return Err(anyhow!("Too high diff, missed a bit: {}", d));
             //      };
             //  };
-            let to_write = data & 0x80;
-            data = data << 1;
-            println!("Writing {}, left over: {:#b}", to_write, data);
-            data_handle.set_value(to_write)?
+            if evt.event_type() == EventType::FallingEdge {
+                let to_write = data & 0x80;
+                data = data << 1;
+                println!("Writing {}, left over: {:#b}", to_write, data);
+                data_handle.set_value(to_write)?
+            }
         }
 
         println!("Shifted byte {}", count);
