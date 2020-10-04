@@ -175,7 +175,7 @@ error:
   LITERAL error_message
   JSR print_string_stack
   LDA 0,X
-  AND 1,X
+  ORA 1,X
   BEQ .loop
   .has_message:
     JSR print_string_stack
