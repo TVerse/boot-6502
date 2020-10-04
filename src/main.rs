@@ -9,7 +9,7 @@ use anyhow::Result;
 use gpio_cdev;
 // use lib_gpio;
 // use lib_gpio::{Chip, PinValue, ReadableGpioPin, WritableGpioPin};
-use gpio_cdev::{Chip, EventRequestFlags, LineRequestFlags, LineEvent, EventType};
+use gpio_cdev::{Chip, EventRequestFlags, EventType, LineEvent, LineRequestFlags};
 // use lib_gpio_real::{RpiChip, RpiReadableGpioPin, RpiWritableGpioPin};
 
 fn main() -> Result<()> {
@@ -72,14 +72,18 @@ fn test_shift(mut cdev_chip: Chip) -> Result<()> {
         });
         for event in clock_events.take(8) {
             let evt = event?;
-            let eq = last_type.map(|t| t == evt.event_type());
-            last_type = Some(evt.event_type());
+            let eq = last_type.as_ref().map(|t| *t == evt.event_type());
             let diff = last_ts.map(|ts| evt.timestamp() - ts);
             last_ts = Some(evt.timestamp());
             println!("Got event {:?}, diff: {:?}", evt, diff);
-            if let Some(false) = eq {
-                return Err(anyhow!("Expected {:?}, got {:?}", last_type.unwrap(), evt.event_type()))
+            if let Some(true) = eq {
+                return Err(anyhow!(
+                    "Expected {:?}, got {:?}",
+                    last_type.as_ref().unwrap(),
+                    evt.event_type()
+                ));
             };
+            last_type = Some(evt.event_type());
             //  if let Some(d) = diff {
             //      if d > 700000 {
             //          return Err(anyhow!("Too high diff, missed a bit: {}", d));
