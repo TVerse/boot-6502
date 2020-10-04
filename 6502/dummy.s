@@ -18,7 +18,7 @@ reset:
   STZ SHIFT_READY
 
   ; SHIFT ON
-  LDA #FF
+  LDA #$FF
   STA T2CL
   LDA ACR
   AND #%11100111
@@ -26,12 +26,12 @@ reset:
   STA ACR
   LDA #%10000100
   STA IER
-  LDA #'H'
-  JSR print_char
+  LDA SR
 loop:
+  .shift:
   WAI
   LDA SHIFT_READY
-  BEQ loop
+  BEQ .shift
   STZ SHIFT_READY
   LDA SHIFTED_BYTE
   JSR print_char
@@ -59,9 +59,7 @@ irq:
     LDA SR
     STA SHIFTED_BYTE
   .buttons:
-    ;JSR read_buttons
-    ;ASL
-    ;STA PORTA
+    JSR read_buttons
   .done:
   PLA
   RTI

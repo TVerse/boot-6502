@@ -8,7 +8,7 @@ use anyhow::Result;
 use gpio_cdev;
 // use lib_gpio;
 // use lib_gpio::{Chip, PinValue, ReadableGpioPin, WritableGpioPin};
-use gpio_cdev::{Chip, LineRequestFlags, EventRequestFlags};
+use gpio_cdev::{Chip, EventRequestFlags, LineRequestFlags};
 // use lib_gpio_real::{RpiChip, RpiReadableGpioPin, RpiWritableGpioPin};
 
 fn main() -> Result<()> {
@@ -43,19 +43,44 @@ fn main() -> Result<()> {
 // }
 
 fn test_shift(mut cdev_chip: Chip) -> Result<()> {
-    let mut data: u8 = 0x41; // 'A'
     let clock_line = cdev_chip.get_line(17)?;
     let data_line = cdev_chip.get_line(27)?;
 
-    let clock_events = clock_line.events(LineRequestFlags::INPUT, EventRequestFlags::FALLING_EDGE, "clock")?;
     let data_handle = data_line.request(LineRequestFlags::OUTPUT, 0, "data")?;
 
-    for (event, _) in clock_events.zip(0..8) {
-        let _evt = event?;
-        let to_write = data & 0x1;
-        data = data >> 1;
-        data_handle.set_value(to_write)?
-    }
+    let mut count = 0;
+    let mut last_ts = 0;
 
-    Ok(())
+    loop {
+        let mut data: u8 = 0x41; // 'A'
+        println!("Waiting...");
+
+        let clock_events = clock_line.events(
+            LineRequestFlags::INPUT,
+            EventRequestFlags::FALLING_EDGE,
+            "clock",
+        )?;
+        use std::sync::Mutex;
+        let c = Mutex::new(0);
+        let clock_events = clock_events.map(|x| {
+            let mut d = c.lock().unwrap();
+            println!("d: {}", &d);
+            *d += 1;
+            x
+        });
+        for event in clock_events.take(8) {
+            let evt = event?;
+            let diff = evt.timestamp() - last_ts;
+            last_ts = evt.timestamp();
+            println!("Got event {:?}, diff: {}", evt, diff);
+            let to_write = data & 0x80;
+            data = data << 1;
+            println!("Writing {}, left over: {:#b}", to_write, data);
+            data_handle.set_value(to_write)?
+        }
+
+        println!("Shifted byte {}", count);
+
+        count += 1;
+    }
 }
