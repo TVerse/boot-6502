@@ -1,2 +1,8 @@
 [build]
-target = "armv7-unknown-linux-gnueabihf"
+target = "avr-unknown-gnu-atmega2560.json"
+
+[unstable]
+build-std = ["core"]
+
+[target.'cfg(target_arch = "avr")']
+runner = "./runner.sh"
