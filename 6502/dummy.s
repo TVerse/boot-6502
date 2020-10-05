@@ -21,8 +21,8 @@ reset:
   LDA #$FF
   STA T2CL
   LDA ACR
-  AND #%11100111
-  ORA #%00000100
+  AND #%11101111
+  ORA #%00001100
   STA ACR
   LDA #%10000100
   STA IER
@@ -36,8 +36,8 @@ loop:
   LDA SHIFTED_BYTE
   JSR print_char
   LDA SHIFTED_BYTE
-  CMP #%10101010
-  BNE .error
+  ; CMP #%10101010
+  ; BNE .error
   .continue:
     JMP loop
   .error:
