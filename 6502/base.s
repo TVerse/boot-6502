@@ -166,6 +166,25 @@ delay:
   POP
   RTS
 
+; ( string_pointer -- )
+; Does not return
+error:
+  SEI
+  LDA #%00000001
+  JSR lcd_instruction
+  LITERAL error_message
+  JSR print_string_stack
+  LDA 0,X
+  ORA 1,X
+  BEQ .loop
+  .has_message:
+    JSR print_string_stack
+  .loop:
+    WAI
+    JMP .loop
+
+error_message: .asciiz "ERROR: "
+
   ; Harder and ATM broken version
   ; Should do atomic reads into X, Y
   ; read_timer:

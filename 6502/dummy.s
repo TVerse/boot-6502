@@ -18,23 +18,35 @@ reset:
   STZ SHIFT_READY
 
   ; SHIFT ON
+  LDA #$FF
+  STA T2CL
   LDA ACR
-  AND #%11101111
-  ORA #%00001100
+  AND #%11100111
+  ORA #%00000100
   STA ACR
   LDA #%10000100
   STA IER
-  LDA #'H'
-  JSR print_char
   LDA SR
 loop:
+  .shift:
   WAI
   LDA SHIFT_READY
-  BEQ loop
+  BEQ .shift
   STZ SHIFT_READY
   LDA SHIFTED_BYTE
   JSR print_char
-  JMP loop
+  LDA SHIFTED_BYTE
+  CMP #%10101010
+  BNE .error
+  .continue:
+    JMP loop
+  .error:
+    JSR sr_error
+
+sr_error:
+  STZ SHIFTED_BYTE + 1
+  LITERAL SHIFTED_BYTE
+  JMP error
 
 toggle_led:
   LDA PORTA
@@ -58,9 +70,7 @@ irq:
     LDA SR
     STA SHIFTED_BYTE
   .buttons:
-    ;JSR read_buttons
-    ;ASL
-    ;STA PORTA
+    JSR read_buttons
   .done:
   PLA
   RTI

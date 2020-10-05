@@ -88,7 +88,7 @@ print_string_stack:
     POP
     RTS
 
-; Returns button state in A
+; Returns button state in A and BUTTON_STATE_ADDR
 ; 0000rldu
 ; Only highest priority bit will be set
 ; Priority: udlr
@@ -126,4 +126,5 @@ read_buttons:
   .nothing:
     LDA #0
   .done:
+    STA BUTTON_STATE_ADDR
     RTS
