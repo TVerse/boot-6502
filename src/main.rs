@@ -116,7 +116,7 @@ fn test_shift_poll(cdev_chip: &mut Chip) -> Result<()> {
 
         let mut bit_counter = 0;
         while bit_counter != 8 {
-            wait_for_falling_edge(&clock_handle);
+            wait_for_falling_edge(&clock_handle)?;
             let to_write = data & 0x80;
             data = data << 1;
             println!("Writing {}, left over: {:#b}", to_write, data);
