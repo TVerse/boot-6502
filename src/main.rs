@@ -17,9 +17,37 @@ fn main() -> ! {
         dp.PORTK, dp.PORTL,
     );
 
-    test_shift(pins, &mut delay);
+    keep_shifting(pins, &mut delay);
 
     loop {}
+}
+
+fn keep_shifting(mut pins: Pins, delay: &mut Delay) -> () {
+    let mut clock_pin = pins.d52.into_output(&mut pins.ddr);
+    let mut data_pin = pins.d53.into_output(&mut pins.ddr);
+    clock_pin.set_high().void_unwrap();
+
+    delay.delay_ms(5000u16);
+
+    let delay_us = 30u16;
+
+    loop {
+        let mut d = 0b10101010;
+        for _ in 0..8 {
+            clock_pin.set_low().void_unwrap();
+            delay.delay_us(delay_us);
+            let to_write = d & 0x80;
+            d = d << 1;
+            if to_write == 0 {
+                data_pin.set_low().void_unwrap();
+            } else {
+                data_pin.set_high().void_unwrap();
+            }
+            delay.delay_us(delay_us);
+            clock_pin.set_high().void_unwrap();
+            delay.delay_us(delay_us);
+        }
+    }
 }
 
 fn test_shift(mut pins: Pins, delay: &mut Delay) -> () {
@@ -27,22 +55,23 @@ fn test_shift(mut pins: Pins, delay: &mut Delay) -> () {
     let mut data_pin = pins.d53.into_output(&mut pins.ddr);
     clock_pin.set_high().void_unwrap();
 
-    let mut data: [u8; 15] = b"Hello from Ard!".clone();
+    let data: [u8; 15] = b"Hello from Ard!".clone();
 
-    for d in data.iter_mut() {
+    for d in data.iter() {
+        let mut d = d.clone();
         for _ in 0..8 {
             clock_pin.set_low().void_unwrap();
-            delay.delay_ms(1u8);
-            let to_write = *d & 0x80;
-            *d = *d << 1;
+            delay.delay_us(5000u16);
+            let to_write = d & 0x80;
+            d = d << 1;
             if to_write == 0 {
                 data_pin.set_low().void_unwrap();
             } else {
                 data_pin.set_high().void_unwrap();
             }
-            delay.delay_ms(1u8);
+            delay.delay_us(5000u16);
             clock_pin.set_high().void_unwrap();
-            delay.delay_ms(1u8);
+            delay.delay_us(5000u16);
         }
     }
 

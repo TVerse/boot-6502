@@ -36,8 +36,8 @@ loop:
   LDA SHIFTED_BYTE
   JSR print_char
   LDA SHIFTED_BYTE
-  ; CMP #%10101010
-  ; BNE .error
+  CMP #%10101010
+  BNE .error
   .continue:
     JMP loop
   .error:
