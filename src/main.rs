@@ -5,16 +5,13 @@ use std::time::Duration;
 
 use anyhow::anyhow;
 use anyhow::Result;
-// use boot;
 use gpio_cdev;
-// use lib_gpio;
-// use lib_gpio::{Chip, PinValue, ReadableGpioPin, WritableGpioPin};
-use gpio_cdev::{Chip, EventRequestFlags, EventType, LineEvent, LineRequestFlags};
-// use lib_gpio_real::{RpiChip, RpiReadableGpioPin, RpiWritableGpioPin};
+use gpio_cdev::{Chip, EventRequestFlags, EventType, LineEvent, LineHandle, LineRequestFlags};
 
 fn main() -> Result<()> {
     let mut cdev_chip: Chip = Chip::new("/dev/gpiochip0")?;
-    test_send(&mut cdev_chip)
+    // test_send(&mut cdev_chip)
+    test_shift_poll(&mut cdev_chip)
 }
 
 fn test_send(cdev_chip: &mut Chip) -> Result<()> {
@@ -102,4 +99,46 @@ fn test_shift(cdev_chip: &mut Chip) -> Result<()> {
 
         count += 1;
     }
+}
+
+fn test_shift_poll(cdev_chip: &mut Chip) -> Result<()> {
+    let clock_line = cdev_chip.get_line(17)?;
+    let data_line = cdev_chip.get_line(27)?;
+
+    let data_handle = data_line.request(LineRequestFlags::OUTPUT, 0, "data")?;
+    let clock_handle = clock_line.request(LineRequestFlags::INPUT, 0, "clock")?;
+
+    let mut count = 0;
+
+    loop {
+        let mut data: u8 = 0b10101010;
+        println!("Waiting...");
+
+        let mut bit_counter = 0;
+        while bit_counter != 8 {
+            wait_for_falling_edge(&clock_handle);
+            let to_write = data & 0x80;
+            data = data << 1;
+            println!("Writing {}, left over: {:#b}", to_write, data);
+            data_handle.set_value(to_write)?;
+            bit_counter += 1;
+        }
+
+        println!("Shifted byte {}", count);
+
+        count += 1;
+    }
+}
+
+fn wait_for_falling_edge(line_handle: &LineHandle) -> Result<()> {
+    let mut cur = line_handle.get_value()?;
+    while cur == 0 {
+        cur = line_handle.get_value()?;
+    }
+
+    while cur == 1 {
+        cur = line_handle.get_value()?;
+    }
+
+    Ok(())
 }
