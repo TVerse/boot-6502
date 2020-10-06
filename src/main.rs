@@ -5,75 +5,34 @@
 extern crate panic_halt;
 
 use arduino_mega2560::prelude::*;
-use arduino_mega2560::{Delay, Pins};
 
 #[arduino_mega2560::entry]
 fn main() -> ! {
     let dp = arduino_mega2560::Peripherals::take().unwrap();
 
     let mut delay = arduino_mega2560::Delay::new();
-    let pins = arduino_mega2560::Pins::new(
-        dp.PORTA, dp.PORTB, dp.PORTC, dp.PORTD, dp.PORTE, dp.PORTF, dp.PORTG, dp.PORTH, dp.PORTJ,
-        dp.PORTK, dp.PORTL,
+    let mut porte = dp.PORTE.split();
+    let mut portd = dp.PORTD.split();
+
+    let mut serial = arduino_mega2560::Serial::new(
+        dp.USART0,
+        porte.pe0,
+        porte.pe1.into_output(&mut porte.ddr),
+        57600,
+    );
+    let mut i2c = arduino_mega2560::I2c::new(
+        dp.TWI,
+        portd.pd1.into_pull_up_input(&mut portd.ddr),
+        portd.pd0.into_pull_up_input(&mut portd.ddr),
+        50000,
     );
 
-    keep_shifting(pins, &mut delay);
-
-    loop {}
-}
-
-fn keep_shifting(mut pins: Pins, delay: &mut Delay) -> () {
-    let mut clock_pin = pins.d52.into_output(&mut pins.ddr);
-    let mut data_pin = pins.d53.into_output(&mut pins.ddr);
-    clock_pin.set_high().void_unwrap();
-
-    delay.delay_ms(5000u16);
-
-    let delay_us = 30u16;
+    ufmt::uwriteln!(&mut serial, "Write direction test:\r").void_unwrap();
+    i2c.i2cdetect(&mut serial, arduino_mega2560::hal::i2c::Direction::Write).void_unwrap();
+    ufmt::uwriteln!(&mut serial, "\r\nRead direction test:\r").void_unwrap();
+    i2c.i2cdetect(&mut serial, arduino_mega2560::hal::i2c::Direction::Read).void_unwrap();
 
     loop {
-        let mut d = 0b10101010;
-        for _ in 0..8 {
-            clock_pin.set_low().void_unwrap();
-            delay.delay_us(delay_us);
-            let to_write = d & 0x80;
-            d = d << 1;
-            if to_write == 0 {
-                data_pin.set_low().void_unwrap();
-            } else {
-                data_pin.set_high().void_unwrap();
-            }
-            delay.delay_us(delay_us);
-            clock_pin.set_high().void_unwrap();
-            delay.delay_us(delay_us);
-        }
+        delay.delay_ms(1000u16);
     }
-}
-
-fn test_shift(mut pins: Pins, delay: &mut Delay) -> () {
-    let mut clock_pin = pins.d52.into_output(&mut pins.ddr);
-    let mut data_pin = pins.d53.into_output(&mut pins.ddr);
-    clock_pin.set_high().void_unwrap();
-
-    let data: [u8; 15] = b"Hello from Ard!".clone();
-
-    for d in data.iter() {
-        let mut d = d.clone();
-        for _ in 0..8 {
-            clock_pin.set_low().void_unwrap();
-            delay.delay_us(5000u16);
-            let to_write = d & 0x80;
-            d = d << 1;
-            if to_write == 0 {
-                data_pin.set_low().void_unwrap();
-            } else {
-                data_pin.set_high().void_unwrap();
-            }
-            delay.delay_us(5000u16);
-            clock_pin.set_high().void_unwrap();
-            delay.delay_us(5000u16);
-        }
-    }
-
-    ()
 }

@@ -8,8 +8,8 @@ edition = "2018"
 
 [dependencies]
 panic-halt = "0.2.0"
-
-arduino-mega2560 = {git="https://github.com/Rahix/avr-hal"}
+arduino-mega2560 = { git = "https://github.com/Rahix/avr-hal" }
+ufmt = "0.1.0"
 
 [profile.dev]
 panic = "abort"
