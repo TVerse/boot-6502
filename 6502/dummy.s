@@ -17,6 +17,8 @@ reset:
 
   STZ TRANSFER_READY
 
+  STZ DDRA
+
   LDA PCR
   AND #%11111001
   ORA #%00001001
@@ -45,12 +47,6 @@ sr_error:
   LITERAL TRANSFERRED_BYTE
   JMP error
 
-toggle_led:
-  LDA PORTA
-  EOR #1
-  STA PORTA
-  RTS
-
 waiting:
   .asciiz "Reading buttons"
 
@@ -61,8 +57,8 @@ irq:
   BPL .buttons ; Not the VIA?
   AND #%00000010
   BEQ .buttons
-    LDA TRANSFER_READY
-    BNE .buttons ; Previous transfer not handled
+    ; TODO avoid going too fast
+    ; Does LDA PORTA really have to happen here?
     INC TRANSFER_READY
     LDA PORTA
     STA TRANSFERRED_BYTE

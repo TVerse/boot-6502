@@ -43,9 +43,9 @@ fn main() -> ! {
     let mut pa6 = pins.d31.into_output(&mut pins.ddr);
     let mut pa7 = pins.d29.into_output(&mut pins.ddr);
 
-    delay.delay_ms(2000u16);
-
     let s = b"Hello world!";
+
+    let start = micros();
 
     for data in s {
         ufmt::uwriteln!(&mut serial, "Sending data: {}", data).void_unwrap();
@@ -90,22 +90,23 @@ fn main() -> ! {
         } else {
             pa0.set_low().void_unwrap();
         }
-        ufmt::uwriteln!(&mut serial, "Prepared data").void_unwrap();
-
-        delay.delay_us(100u16);
 
         ca1.set_low().void_unwrap();
 
-        ufmt::uwriteln!(&mut serial, "Signalled, waiting...").void_unwrap();
-
         while ca2.is_high().void_unwrap() {}
-
-        ufmt::uwriteln!(&mut serial, "Data taken!").void_unwrap();
 
         ca1.set_high().void_unwrap();
     }
 
+    let end = micros();
+
+    ufmt::uwriteln!(&mut serial, "Micros taken: {}", end - start).void_unwrap();
+
     loop {
         delay.delay_ms(10000u16);
     }
+}
+
+fn micros() -> u64 {
+    0
 }
