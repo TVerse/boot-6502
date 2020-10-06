@@ -2,8 +2,8 @@
 
   .org ROM_START_ADDR
 
-SHIFT_READY = $1000
-SHIFTED_BYTE = $1001
+TRANSFER_READY = $1000
+TRANSFERRED_BYTE = $1001
 
 reset:
   ; Turn on cursor
@@ -15,37 +15,34 @@ reset:
   ;LITERAL waiting
   ;JSR print_string_stack
 
-  STZ SHIFT_READY
+  STZ TRANSFER_READY
 
-  ; SHIFT ON
-  LDA #$FF
-  STA T2CL
-  LDA ACR
-  AND #%11101111
-  ORA #%00001100
-  STA ACR
-  LDA #%10000100
+  LDA PCR
+  AND #%11111001
+  ORA #%00001001
+  STA PCR
+  LDA #%10000010
   STA IER
-  LDA SR
+  LDA PORTA
+
 loop:
-  .shift:
   WAI
-  LDA SHIFT_READY
-  BEQ .shift
-  STZ SHIFT_READY
-  LDA SHIFTED_BYTE
+  LDA TRANSFER_READY
+  BEQ loop
+  LDA TRANSFERRED_BYTE
   JSR print_char
-  LDA SHIFTED_BYTE
-  CMP #%10101010
-  BNE .error
+  STZ TRANSFER_READY
+  ; LDA TRANSFERRED_BYTE
+  ; CMP #%10101010
+  ; BNE .error
   .continue:
     JMP loop
   .error:
     JSR sr_error
 
 sr_error:
-  STZ SHIFTED_BYTE + 1
-  LITERAL SHIFTED_BYTE
+  STZ TRANSFERRED_BYTE + 1
+  LITERAL TRANSFERRED_BYTE
   JMP error
 
 toggle_led:
@@ -62,13 +59,13 @@ irq:
   PHA
   LDA IFR
   BPL .buttons ; Not the VIA?
-  AND #%00000100 ; SR
+  AND #%00000010
   BEQ .buttons
-    JSR toggle_led
-    LDA #1
-    STA SHIFT_READY
-    LDA SR
-    STA SHIFTED_BYTE
+    LDA TRANSFER_READY
+    BNE .buttons ; Previous transfer not handled
+    INC TRANSFER_READY
+    LDA PORTA
+    STA TRANSFERRED_BYTE
   .buttons:
     JSR read_buttons
   .done:
