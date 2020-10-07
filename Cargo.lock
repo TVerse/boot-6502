@@ -69,6 +69,8 @@ name = "boot-6502"
 version = "0.1.0"
 dependencies = [
  "arduino-mega2560",
+ "atmega2560-hal",
+ "avr-hal-generic",
  "panic-halt",
  "ufmt",
 ]

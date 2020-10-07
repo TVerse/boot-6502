@@ -4,7 +4,12 @@
 // Pull in the panic handler from panic-halt
 extern crate panic_halt;
 
+use arduino_mega2560::hal::port::mode::{Floating, Input, Output};
 use arduino_mega2560::prelude::*;
+use atmega2560_hal::port::portb;
+use avr_hal_generic::hal::digital::v2::InputPin;
+use avr_hal_generic::hal::digital::v2::OutputPin;
+use avr_hal_generic::void::Void;
 use ufmt;
 
 /*
@@ -15,6 +20,41 @@ use ufmt;
  * ...
  * PA7: 29
  */
+
+struct SendHandshakePins<'a> {
+    incoming_handshake: &'a dyn InputPin<Error=Void>,
+    outgoing_handshake: &'a mut dyn OutputPin<Error=Void>,
+}
+
+struct SendDataPins<'a> {
+    pins: [&'a mut dyn OutputPin<Error=Void>; 8],
+}
+
+struct SendPins<'a> {
+    handshake_pins: SendHandshakePins<'a>,
+    data_pins: SendDataPins<'a>,
+}
+
+fn send_byte(send_pins: &mut SendPins, byte: u8) {
+    let SendPins {
+        handshake_pins: handshake,
+        data_pins: data,
+    } = send_pins;
+
+    for i in 0..8 {
+        let mask = 1 << i;
+        if byte & mask == 0 {
+            data.pins[i].set_low().void_unwrap();
+        } else {
+            data.pins[i].set_high().void_unwrap();
+        }
+    }
+    handshake.outgoing_handshake.set_low().void_unwrap();
+
+    while handshake.incoming_handshake.is_high().void_unwrap() {}
+
+    handshake.outgoing_handshake.set_high().void_unwrap();
+}
 
 #[arduino_mega2560::entry]
 fn main() -> ! {
@@ -43,70 +83,37 @@ fn main() -> ! {
     let mut pa6 = pins.d31.into_output(&mut pins.ddr);
     let mut pa7 = pins.d29.into_output(&mut pins.ddr);
 
-    let s = b"Hello world!";
+    let handshake_pins = SendHandshakePins {
+        incoming_handshake: &ca2,
+        outgoing_handshake: &mut ca1,
+    };
 
-    let start = micros();
+    let data_pins = SendDataPins {
+        pins: [
+            &mut pa0,
+            &mut pa1,
+            &mut pa2,
+            &mut pa3,
+            &mut pa4,
+            &mut pa5,
+            &mut pa6,
+            &mut pa7,
+        ],
+    };
+
+    let mut send_pins = SendPins {
+        handshake_pins,
+        data_pins,
+    };
+
+    let s = b"Hello world!";
 
     for data in s {
         ufmt::uwriteln!(&mut serial, "Sending data: {}", data).void_unwrap();
-
-        if data & 0b10000000 != 0 {
-            pa7.set_high().void_unwrap();
-        } else {
-            pa7.set_low().void_unwrap();
-        }
-        if data & 0b01000000 != 0 {
-            pa6.set_high().void_unwrap();
-        } else {
-            pa6.set_low().void_unwrap();
-        }
-        if data & 0b00100000 != 0 {
-            pa5.set_high().void_unwrap();
-        } else {
-            pa5.set_low().void_unwrap();
-        }
-        if data & 0b00010000 != 0 {
-            pa4.set_high().void_unwrap();
-        } else {
-            pa4.set_low().void_unwrap();
-        }
-        if data & 0b00001000 != 0 {
-            pa3.set_high().void_unwrap();
-        } else {
-            pa3.set_low().void_unwrap();
-        }
-        if data & 0b00000100 != 0 {
-            pa2.set_high().void_unwrap();
-        } else {
-            pa2.set_low().void_unwrap();
-        }
-        if data & 0b00000010 != 0 {
-            pa1.set_high().void_unwrap();
-        } else {
-            pa1.set_low().void_unwrap();
-        }
-        if data & 0b00000001 != 0 {
-            pa0.set_high().void_unwrap();
-        } else {
-            pa0.set_low().void_unwrap();
-        }
-
-        ca1.set_low().void_unwrap();
-
-        while ca2.is_high().void_unwrap() {}
-
-        ca1.set_high().void_unwrap();
+        send_byte(&mut send_pins, *data);
     }
-
-    let end = micros();
-
-    ufmt::uwriteln!(&mut serial, "Micros taken: {}", end - start).void_unwrap();
 
     loop {
         delay.delay_ms(10000u16);
     }
-}
-
-fn micros() -> u64 {
-    0
 }
