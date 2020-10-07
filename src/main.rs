@@ -40,10 +40,9 @@ fn main() -> ! {
         dp.PORTA, dp.PORTB, dp.PORTC, dp.PORTD, dp.PORTE, dp.PORTF, dp.PORTG, dp.PORTH, dp.PORTJ,
         dp.PORTK, dp.PORTL,
     );
-    let panic = pins.d52.into_output(&pins.ddr);
 
     unsafe {
-        PANIC_LED = MaybeUninit::new(panic);
+        PANIC_LED = MaybeUninit::new(pins.d52.into_output(&pins.ddr));
     };
 
     let mut serial =
@@ -84,15 +83,26 @@ fn main() -> ! {
 
     core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
 
-    for p in send_pins.data_pins.pins.iter_mut() {
-        p.set_high().void_unwrap();
+    loop {
+        for p in send_pins.data_pins.pins.iter_mut() {
+            p.set_high().void_unwrap();
+        }
+        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+        delay.delay_ms(500u16);
+        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+        for p in send_pins.data_pins.pins.iter_mut() {
+            p.set_low().void_unwrap();
+        }
+        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+        delay.delay_ms(500u16);
+        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
     }
 
-    core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
-
-    ufmt::uwriteln!(&mut serial, "???").void_unwrap();
-
-    panic!("test");
+    // core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+    //
+    // ufmt::uwriteln!(&mut serial, "???").void_unwrap();
+    //
+    // panic!("test");
     //
     // let s = b"Hello world!";
     //
