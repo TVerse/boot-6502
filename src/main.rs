@@ -1,13 +1,15 @@
 #![no_std]
 #![no_main]
 
-// Pull in the panic handler from panic-halt
-// extern crate panic_halt;
-
 use arduino_mega2560::prelude::*;
+use atmega2560_hal::port;
+use avr_hal_generic::clock::MHz16;
+use avr_hal_generic::delay::Delay;
 use avr_hal_generic::hal::digital::v2::InputPin;
 use avr_hal_generic::hal::digital::v2::OutputPin;
-use avr_hal_generic::void::Void;
+use avr_hal_generic::void::{ResultVoidExt, Void};
+use core::mem::MaybeUninit;
+use core::panic::PanicInfo;
 
 /*
  * CA1: 51
@@ -18,48 +20,17 @@ use avr_hal_generic::void::Void;
  * PA7: 29
  */
 
-struct SendHandshakePins<'a> {
-    incoming_handshake: &'a dyn InputPin<Error = Void>,
-    outgoing_handshake: &'a mut dyn OutputPin<Error = Void>,
-}
-
-struct SendDataPins<'a> {
-    pins: [&'a mut dyn OutputPin<Error = Void>; 8],
-}
-
-struct SendPins<'a> {
-    handshake_pins: SendHandshakePins<'a>,
-    data_pins: SendDataPins<'a>,
-}
-
-fn send_byte(send_pins: &mut SendPins, byte: u8) {
-    let SendPins {
-        handshake_pins: handshake,
-        data_pins: data,
-    } = send_pins;
-
-    let mut _delay = arduino_mega2560::Delay::new();
-
-    for i in 0..8 {
-        let mask = 1 << i;
-        //if byte & mask == 0 {
-        data.pins[i].set_high().void_unwrap();
-        //} else {
-        //data.pins[i].set_low().void_unwrap();
-        //}
-    }
-
-    handshake.outgoing_handshake.set_low().void_unwrap();
-
-    while handshake.incoming_handshake.is_high().void_unwrap() {}
-
-    handshake.outgoing_handshake.set_high().void_unwrap();
-}
-
-use atmega2560_hal::port;
-use core::mem::MaybeUninit;
-
 static mut PANIC_LED: MaybeUninit<port::portb::PB1<port::mode::Output>> = MaybeUninit::uninit();
+
+#[panic_handler]
+fn panic(_info: &PanicInfo) -> ! {
+    let led = unsafe { &mut *PANIC_LED.as_mut_ptr() };
+    let mut delay = arduino_mega2560::Delay::new();
+    loop {
+        led.toggle().void_unwrap();
+        delay.delay_ms(500u16);
+    }
+}
 
 #[arduino_mega2560::entry]
 fn main() -> ! {
@@ -69,15 +40,14 @@ fn main() -> ! {
         dp.PORTA, dp.PORTB, dp.PORTC, dp.PORTD, dp.PORTE, dp.PORTF, dp.PORTG, dp.PORTH, dp.PORTJ,
         dp.PORTK, dp.PORTL,
     );
-    // set up serial interface for text output
-    let mut serial =
-        arduino_mega2560::Serial::new(dp.USART0, pins.d0, pins.d1.into_output(&pins.ddr), 57600);
-
     let panic = pins.d52.into_output(&pins.ddr);
 
     unsafe {
         PANIC_LED = MaybeUninit::new(panic);
     };
+
+    let mut serial =
+        arduino_mega2560::Serial::new(dp.USART0, pins.d0, pins.d1.into_output(&pins.ddr), 57600);
 
     let mut ca1 = pins.d51.into_output(&pins.ddr);
     let ca2 = pins.d53;
@@ -123,28 +93,53 @@ fn main() -> ! {
     ufmt::uwriteln!(&mut serial, "???").void_unwrap();
 
     panic!("test");
-    loop {}
-
-    let s = b"Hello world!";
-
-    for data in s {
-        ufmt::uwriteln!(&mut serial, "Sending data: {}", data).void_unwrap();
-        //        send_byte(&mut send_pins, *data);
-    }
-
-    loop {
-        delay.delay_ms(10000u16);
-    }
+    //
+    // let s = b"Hello world!";
+    //
+    // for data in s {
+    //     ufmt::uwriteln!(&mut serial, "Sending data: {}", data).void_unwrap();
+    //     //        send_byte(&mut send_pins, *data);
+    // }
+    //
+    // loop {
+    //     delay.delay_ms(10000u16);
+    // }
 }
 
-use core::panic::PanicInfo;
+struct SendHandshakePins<'a> {
+    incoming_handshake: &'a dyn InputPin<Error = Void>,
+    outgoing_handshake: &'a mut dyn OutputPin<Error = Void>,
+}
 
-#[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    let led = unsafe { &mut *PANIC_LED.as_mut_ptr() };
-    let mut delay = arduino_mega2560::Delay::new();
-    loop {
-        led.toggle().void_unwrap();
-        delay.delay_ms(500u16);
+struct SendDataPins<'a> {
+    pins: [&'a mut dyn OutputPin<Error = Void>; 8],
+}
+
+struct SendPins<'a> {
+    handshake_pins: SendHandshakePins<'a>,
+    data_pins: SendDataPins<'a>,
+}
+
+fn send_byte(send_pins: &mut SendPins, byte: u8) {
+    let SendPins {
+        handshake_pins: handshake,
+        data_pins: data,
+    } = send_pins;
+
+    let mut _delay = arduino_mega2560::Delay::new();
+
+    for i in 0..8 {
+        let mask = 1 << i;
+        //if byte & mask == 0 {
+        data.pins[i].set_high().void_unwrap();
+        //} else {
+        //data.pins[i].set_low().void_unwrap();
+        //}
     }
+
+    handshake.outgoing_handshake.set_low().void_unwrap();
+
+    while handshake.incoming_handshake.is_high().void_unwrap() {}
+
+    handshake.outgoing_handshake.set_high().void_unwrap();
 }
