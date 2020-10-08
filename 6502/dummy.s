@@ -2,8 +2,11 @@
 
   .org ROM_START_ADDR
 
-TRANSFER_READY = $1000
-TRANSFERRED_BYTE = $1001
+TRANSFER_IN_PROGRESS = $1000
+TRANSFER_DONE = $1001
+TRANSFER_LENGTH = $1002
+TRANSFER_POINTER = $1003
+TRANSFER_RESULT = $1100
 
 reset:
   ; Turn on cursor
@@ -15,7 +18,8 @@ reset:
   ;LITERAL waiting
   ;JSR print_string_stack
 
-  STZ TRANSFER_READY
+  STZ TRANSFER_DONE
+  STZ TRANSFER_IN_PROGRESS
 
   STZ DDRA
 
@@ -29,23 +33,12 @@ reset:
 
 loop:
   WAI
-  LDA TRANSFER_READY
+  LDA TRANSFER_DONE
   BEQ loop
-  LDA TRANSFERRED_BYTE
-  JSR print_char
-  STZ TRANSFER_READY
-  ; LDA TRANSFERRED_BYTE
-  ; CMP #%10101010
-  ; BNE .error
-  .continue:
-    JMP loop
-  .error:
-    JSR sr_error
-
-sr_error:
-  STZ TRANSFERRED_BYTE + 1
-  LITERAL TRANSFERRED_BYTE
-  JMP error
+  LITERAL TRANSFER_RESULT
+  JSR print_string_stack
+  STZ TRANSFER_DONE
+  JMP loop
 
 waiting:
   .asciiz "Reading buttons"
@@ -57,11 +50,28 @@ irq:
   BPL .buttons ; Not the VIA?
   AND #%00000010
   BEQ .buttons
-    ; TODO avoid going too fast
-    ; Does LDA PORTA really have to happen here?
-    INC TRANSFER_READY
-    LDA PORTA
-    STA TRANSFERRED_BYTE
+    LDA TRANSFER_DONE
+    BNE .buttons ; TODO what if the other side is too fast?
+    LDA TRANSFER_IN_PROGRESS
+    BNE .continue_transfer
+    .start_transfer:
+      INC TRANSFER_IN_PROGRESS
+      LDA PORTA
+      STA TRANSFER_LENGTH
+      STZ TRANSFER_POINTER
+      BRA .buttons
+    .continue_transfer:
+      PHY
+      LDY TRANSFER_POINTER
+      LDA PORTA
+      STA TRANSFER_RESULT,Y
+      PLY
+      INC TRANSFER_POINTER
+      LDA TRANSFER_LENGTH
+      CMP TRANSFER_POINTER
+      BNE .buttons
+      INC TRANSFER_DONE
+      STZ TRANSFER_IN_PROGRESS
   .buttons:
     JSR read_buttons
   .done:

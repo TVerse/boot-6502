@@ -22,6 +22,7 @@ fn panic(_info: &PanicInfo) -> ! {
     }
 }
 
+// TODO figure out why you get one extra interrupt when this is restarted
 #[arduino_mega2560::entry]
 fn main() -> ! {
     let dp = arduino_mega2560::Peripherals::take().unwrap();
@@ -51,6 +52,10 @@ fn main() -> ! {
 
     ca1.set_high().void_unwrap();
 
+    ufmt::uwriteln!(&mut serial, "Delaying").void_unwrap();
+
+    delay.delay_ms(5000u16);
+
     let mut handshake_pins = HandshakePins {
         incoming_handshake: &ca2,
         outgoing_handshake: &mut ca1,
@@ -67,12 +72,18 @@ fn main() -> ! {
         p7: &mut pa7,
     };
 
-    let s = b"Hello world!";
+    let s = b"Hello how are you I'm fine thanks but I need to pad this to like 70 characters or so I'm going to keep typing for a bit ok thanks";
+
+    let len = (s.len() + 1) as u8;
+
+    send_byte(&mut handshake_pins, &mut send_data_pins, len, &mut serial);
 
     for data in s {
-        ufmt::uwriteln!(&mut serial, "Sending data: {}", data).void_unwrap();
-        send_byte(&mut handshake_pins, &mut send_data_pins, *data);
+        send_byte(&mut handshake_pins, &mut send_data_pins, *data, &mut serial);
+        delay.delay_us(100u16);
     }
+
+    send_byte(&mut handshake_pins, &mut send_data_pins, 0, &mut serial);
 
     loop {
         delay.delay_ms(10000u16);
@@ -110,6 +121,7 @@ fn send_byte<I, O, P0, P1, P2, P3, P4, P5, P6, P7>(
     handshake_pins: &mut HandshakePins<I, O>,
     data_pins: &mut SendDataPins<P0, P1, P2, P3, P4, P5, P6, P7>,
     data: u8,
+    serial: &mut arduino_mega2560::Serial<atmega2560_hal::port::mode::Floating>,
 ) where
     I: In,
     O: Out,
@@ -122,55 +134,61 @@ fn send_byte<I, O, P0, P1, P2, P3, P4, P5, P6, P7>(
     P6: Out,
     P7: Out,
 {
-    let mut _delay = arduino_mega2560::Delay::new();
+    let mut delay = arduino_mega2560::Delay::new();
+    delay.delay_ms(1u16);
+
+    ufmt::uwriteln!(serial, "Sending data: {}", data).void_unwrap();
 
     // TODO macro?
-    if data & 0b00000001 == 0 {
+    if data & 0b00000001 != 0 {
         data_pins.p0.set_high().void_unwrap();
     } else {
         data_pins.p0.set_low().void_unwrap();
     }
-    if data & 0b00000010 == 0 {
+    if data & 0b00000010 != 0 {
         data_pins.p1.set_high().void_unwrap();
     } else {
         data_pins.p1.set_low().void_unwrap();
     }
-    if data & 0b00000100 == 0 {
+    if data & 0b00000100 != 0 {
         data_pins.p2.set_high().void_unwrap();
     } else {
         data_pins.p2.set_low().void_unwrap();
     }
-    if data & 0b00001000 == 0 {
+    if data & 0b00001000 != 0 {
         data_pins.p3.set_high().void_unwrap();
     } else {
         data_pins.p3.set_low().void_unwrap();
     }
-    if data & 0b00010000 == 0 {
+    if data & 0b00010000 != 0 {
         data_pins.p4.set_high().void_unwrap();
     } else {
         data_pins.p4.set_low().void_unwrap();
     }
-    if data & 0b00100000 == 0 {
+    if data & 0b00100000 != 0 {
         data_pins.p5.set_high().void_unwrap();
     } else {
         data_pins.p5.set_low().void_unwrap();
     }
-    if data & 0b01000000 == 0 {
+    if data & 0b01000000 != 0 {
         data_pins.p6.set_high().void_unwrap();
     } else {
         data_pins.p6.set_low().void_unwrap();
     }
-    if data & 0b10000000 == 0 {
+    if data & 0b10000000 != 0 {
         data_pins.p7.set_high().void_unwrap();
     } else {
         data_pins.p7.set_low().void_unwrap();
     }
 
     handshake_pins.outgoing_handshake.set_low().void_unwrap();
+    delay.delay_us(5u8); // TODO race condition somewhere? Too fast for the 6502?
 
     while handshake_pins.incoming_handshake.is_high().void_unwrap() {}
-
     handshake_pins.outgoing_handshake.set_high().void_unwrap();
+    delay.delay_us(5u8); // TODO race condition somewhere? Too fast for the 6502?
+
+    while handshake_pins.incoming_handshake.is_low().void_unwrap() {}
 }
 
 trait Out: OutputPin<Error = Void> {}
