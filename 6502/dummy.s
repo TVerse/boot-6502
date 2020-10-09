@@ -2,8 +2,11 @@
 
   .org ROM_START_ADDR
 
-SHIFT_READY = $1000
-SHIFTED_BYTE = $1001
+TRANSFER_IN_PROGRESS = $1000
+TRANSFER_DONE = $1001
+TRANSFER_LENGTH = $1002
+TRANSFER_POINTER = $1003
+TRANSFER_RESULT = $1100
 
 reset:
   ; Turn on cursor
@@ -15,44 +18,27 @@ reset:
   ;LITERAL waiting
   ;JSR print_string_stack
 
-  STZ SHIFT_READY
+  STZ TRANSFER_DONE
+  STZ TRANSFER_IN_PROGRESS
 
-  ; SHIFT ON
-  LDA #$FF
-  STA T2CL
-  LDA ACR
-  AND #%11100111
-  ORA #%00000100
-  STA ACR
-  LDA #%10000100
+  STZ DDRA
+
+  LDA PCR
+  AND #%11111001
+  ORA #%00001001
+  STA PCR
+  LDA #%10000010
   STA IER
-  LDA SR
-loop:
-  .shift:
-  WAI
-  LDA SHIFT_READY
-  BEQ .shift
-  STZ SHIFT_READY
-  LDA SHIFTED_BYTE
-  JSR print_char
-  LDA SHIFTED_BYTE
-  CMP #%10101010
-  BNE .error
-  .continue:
-    JMP loop
-  .error:
-    JSR sr_error
-
-sr_error:
-  STZ SHIFTED_BYTE + 1
-  LITERAL SHIFTED_BYTE
-  JMP error
-
-toggle_led:
   LDA PORTA
-  EOR #1
-  STA PORTA
-  RTS
+
+loop:
+  WAI
+  LDA TRANSFER_DONE
+  BEQ loop
+  LITERAL TRANSFER_RESULT
+  JSR print_string_stack
+  STZ TRANSFER_DONE
+  JMP loop
 
 waiting:
   .asciiz "Reading buttons"
@@ -62,13 +48,30 @@ irq:
   PHA
   LDA IFR
   BPL .buttons ; Not the VIA?
-  AND #%00000100 ; SR
+  AND #%00000010
   BEQ .buttons
-    JSR toggle_led
-    LDA #1
-    STA SHIFT_READY
-    LDA SR
-    STA SHIFTED_BYTE
+    LDA TRANSFER_DONE
+    BNE .buttons ; TODO what if the other side is too fast?
+    LDA TRANSFER_IN_PROGRESS
+    BNE .continue_transfer
+    .start_transfer:
+      INC TRANSFER_IN_PROGRESS
+      LDA PORTA
+      STA TRANSFER_LENGTH
+      STZ TRANSFER_POINTER
+      BRA .buttons
+    .continue_transfer:
+      PHY
+      LDY TRANSFER_POINTER
+      LDA PORTA
+      STA TRANSFER_RESULT,Y
+      PLY
+      INC TRANSFER_POINTER
+      LDA TRANSFER_LENGTH
+      CMP TRANSFER_POINTER
+      BNE .buttons
+      INC TRANSFER_DONE
+      STZ TRANSFER_IN_PROGRESS
   .buttons:
     JSR read_buttons
   .done:

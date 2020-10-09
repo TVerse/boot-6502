@@ -7,8 +7,21 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lib-gpio = { path = './lib-gpio' }
-lib-gpio-real = { path = './lib-gpio-real' }
-boot = { path = './boot' }
-anyhow = "1.0.32"
-gpio-cdev = "0.4.0"
+# panic-halt = "0.2.0"
+arduino-mega2560 = { git = "https://github.com/Rahix/avr-hal" }
+atmega2560-hal = { git = "https://github.com/Rahix/avr-hal" }
+avr-hal-generic = { git = "https://github.com/Rahix/avr-hal" }
+ufmt = "0.1.0"
+
+[profile.dev]
+panic = "abort"
+lto = true
+opt-level = "s"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+debug = true
+lto = true
+opt-level = "s"
+

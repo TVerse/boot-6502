@@ -1,144 +1,200 @@
-use std::error;
-use std::rc::Rc;
-use std::thread::sleep;
-use std::time::Duration;
+#![no_std]
+#![no_main]
 
-use anyhow::anyhow;
-use anyhow::Result;
-use gpio_cdev;
-use gpio_cdev::{Chip, EventRequestFlags, EventType, LineEvent, LineHandle, LineRequestFlags};
+use core::mem::MaybeUninit;
+use core::panic::PanicInfo;
 
-fn main() -> Result<()> {
-    let mut cdev_chip: Chip = Chip::new("/dev/gpiochip0")?;
-    // test_send(&mut cdev_chip)
-    test_shift_poll(&mut cdev_chip)
+use arduino_mega2560::prelude::*;
+use atmega2560_hal::port;
+use avr_hal_generic::hal::digital::v2::InputPin;
+use avr_hal_generic::hal::digital::v2::OutputPin;
+use avr_hal_generic::void::{ResultVoidExt, Void};
+
+static mut PANIC_LED: MaybeUninit<port::portb::PB1<port::mode::Output>> = MaybeUninit::uninit();
+
+#[panic_handler]
+fn panic(_info: &PanicInfo) -> ! {
+    let led = unsafe { &mut *PANIC_LED.as_mut_ptr() };
+    let mut delay = arduino_mega2560::Delay::new();
+    loop {
+        led.toggle().void_unwrap();
+        delay.delay_ms(500u16);
+    }
 }
 
-fn test_send(cdev_chip: &mut Chip) -> Result<()> {
-    let clock_line = cdev_chip.get_line(17)?;
-    let data_line = cdev_chip.get_line(27)?;
+// TODO figure out why you get one extra interrupt when this is restarted
+#[arduino_mega2560::entry]
+fn main() -> ! {
+    let dp = arduino_mega2560::Peripherals::take().unwrap();
+    let mut delay = arduino_mega2560::Delay::new();
+    let pins = arduino_mega2560::Pins::new(
+        dp.PORTA, dp.PORTB, dp.PORTC, dp.PORTD, dp.PORTE, dp.PORTF, dp.PORTG, dp.PORTH, dp.PORTJ,
+        dp.PORTK, dp.PORTL,
+    );
 
-    let data_handle = data_line.request(LineRequestFlags::OUTPUT, 0, "data")?;
-    let clock_handle = clock_line.request(LineRequestFlags::OUTPUT, 1, "clock")?;
+    unsafe {
+        PANIC_LED = MaybeUninit::new(pins.d52.into_output(&pins.ddr));
+    };
 
-    let mut data: [u8; 15] = b"Hello from RPi!".clone();
+    let mut serial =
+        arduino_mega2560::Serial::new(dp.USART0, pins.d0, pins.d1.into_output(&pins.ddr), 57600);
 
-    for d in data.iter_mut() {
-        for _ in 0..8 {
-            clock_handle.set_value(0)?;
-            sleep(Duration::from_millis(1));
-            let to_write = *d & 0x80;
-            *d = *d << 1;
-            sleep(Duration::from_millis(1));
-            data_handle.set_value(to_write)?;
-            sleep(Duration::from_millis(1));
-            clock_handle.set_value(1)?;
-            sleep(Duration::from_millis(1));
-        }
+    let mut ca1 = pins.d51.into_output(&pins.ddr);
+    let ca2 = pins.d53;
+    let mut pa0 = pins.d43.into_output(&pins.ddr);
+    let mut pa1 = pins.d41.into_output(&pins.ddr);
+    let mut pa2 = pins.d39.into_output(&pins.ddr);
+    let mut pa3 = pins.d37.into_output(&pins.ddr);
+    let mut pa4 = pins.d35.into_output(&pins.ddr);
+    let mut pa5 = pins.d33.into_output(&pins.ddr);
+    let mut pa6 = pins.d31.into_output(&pins.ddr);
+    let mut pa7 = pins.d29.into_output(&pins.ddr);
+
+    ca1.set_high().void_unwrap();
+
+    ufmt::uwriteln!(&mut serial, "Delaying").void_unwrap();
+
+    delay.delay_ms(5000u16);
+
+    let mut handshake_pins = HandshakePins {
+        incoming_handshake: &ca2,
+        outgoing_handshake: &mut ca1,
+    };
+
+    let mut send_data_pins = SendDataPins {
+        p0: &mut pa0,
+        p1: &mut pa1,
+        p2: &mut pa2,
+        p3: &mut pa3,
+        p4: &mut pa4,
+        p5: &mut pa5,
+        p6: &mut pa6,
+        p7: &mut pa7,
+    };
+
+    let s = b"Hello how are you I'm fine thanks but I need to pad this to like 70 characters or so I'm going to keep typing for a bit ok thanks";
+
+    let len = (s.len() + 1) as u8;
+
+    send_byte(&mut handshake_pins, &mut send_data_pins, len, &mut serial);
+
+    for data in s {
+        send_byte(&mut handshake_pins, &mut send_data_pins, *data, &mut serial);
+        delay.delay_us(100u16);
     }
 
-    Ok(())
-}
-
-fn test_shift(cdev_chip: &mut Chip) -> Result<()> {
-    let clock_line = cdev_chip.get_line(17)?;
-    let data_line = cdev_chip.get_line(27)?;
-
-    let data_handle = data_line.request(LineRequestFlags::OUTPUT, 0, "data")?;
-
-    let mut count = 0;
-    let mut last_ts = None;
-    let mut last_type = None;
+    send_byte(&mut handshake_pins, &mut send_data_pins, 0, &mut serial);
 
     loop {
-        let mut data: u8 = 0b10101010;
-        println!("Waiting...");
-
-        let clock_events = clock_line.events(
-            LineRequestFlags::INPUT,
-            EventRequestFlags::BOTH_EDGES,
-            "clock",
-        )?;
-        use std::sync::Mutex;
-        let c = Mutex::new(0);
-        let clock_events = clock_events.map(|x| {
-            let mut d = c.lock().unwrap();
-            println!("d: {}", &d);
-            *d += 1;
-            x
-        });
-        let mut byte_counter = 0;
-        for event in clock_events {
-            let evt = event?;
-            let eq = last_type.as_ref().map(|t| *t == evt.event_type());
-            let diff = last_ts.map(|ts| evt.timestamp() - ts);
-            last_ts = Some(evt.timestamp());
-            println!("Got event {:?}, diff: {:?}", evt, diff);
-            if let Some(true) = eq {
-                return Err(anyhow!("Got {:?} twice!", evt.event_type()));
-            };
-            last_type = Some(evt.event_type());
-            //  if let Some(d) = diff {
-            //      if d > 700000 {
-            //          return Err(anyhow!("Too high diff, missed a bit: {}", d));
-            //      };
-            //  };
-            if evt.event_type() == EventType::FallingEdge {
-                let to_write = data & 0x80;
-                data = data << 1;
-                println!("Writing {}, left over: {:#b}", to_write, data);
-                data_handle.set_value(to_write)?;
-                byte_counter += 1;
-                if byte_counter == 8 {
-                    break;
-                }
-            }
-        }
-
-        println!("Shifted byte {}", count);
-
-        count += 1;
+        delay.delay_ms(10000u16);
     }
 }
 
-fn test_shift_poll(cdev_chip: &mut Chip) -> Result<()> {
-    let clock_line = cdev_chip.get_line(17)?;
-    let data_line = cdev_chip.get_line(27)?;
-
-    let data_handle = data_line.request(LineRequestFlags::OUTPUT, 0, "data")?;
-    let clock_handle = clock_line.request(LineRequestFlags::INPUT, 0, "clock")?;
-
-    let mut count = 0;
-
-    loop {
-        let mut data: u8 = 0b10101010;
-        println!("Waiting...");
-
-        let mut bit_counter = 0;
-        while bit_counter != 8 {
-            wait_for_falling_edge(&clock_handle)?;
-            let to_write = data & 0x80;
-            data = data << 1;
-            println!("Writing {}, left over: {:#b}", to_write, data);
-            data_handle.set_value(to_write)?;
-            bit_counter += 1;
-        }
-
-        println!("Shifted byte {}", count);
-
-        count += 1;
-    }
+struct HandshakePins<'a, I, O> {
+    incoming_handshake: &'a I,
+    outgoing_handshake: &'a mut O,
 }
 
-fn wait_for_falling_edge(line_handle: &LineHandle) -> Result<()> {
-    let mut cur = line_handle.get_value()?;
-    while cur == 0 {
-        cur = line_handle.get_value()?;
-    }
-
-    while cur == 1 {
-        cur = line_handle.get_value()?;
-    }
-
-    Ok(())
+struct SendDataPins<'a, P0, P1, P2, P3, P4, P5, P6, P7> {
+    p0: &'a mut P0,
+    p1: &'a mut P1,
+    p2: &'a mut P2,
+    p3: &'a mut P3,
+    p4: &'a mut P4,
+    p5: &'a mut P5,
+    p6: &'a mut P6,
+    p7: &'a mut P7,
 }
+
+struct ReceiveDataPins<'a, P0, P1, P2, P3, P4, P5, P6, P7> {
+    p0: &'a P0,
+    p1: &'a P1,
+    p2: &'a P2,
+    p3: &'a P3,
+    p4: &'a P4,
+    p5: &'a P5,
+    p6: &'a P6,
+    p7: &'a P7,
+}
+
+fn send_byte<I, O, P0, P1, P2, P3, P4, P5, P6, P7>(
+    handshake_pins: &mut HandshakePins<I, O>,
+    data_pins: &mut SendDataPins<P0, P1, P2, P3, P4, P5, P6, P7>,
+    data: u8,
+    serial: &mut arduino_mega2560::Serial<atmega2560_hal::port::mode::Floating>,
+) where
+    I: In,
+    O: Out,
+    P0: Out,
+    P1: Out,
+    P2: Out,
+    P3: Out,
+    P4: Out,
+    P5: Out,
+    P6: Out,
+    P7: Out,
+{
+    let mut delay = arduino_mega2560::Delay::new();
+    delay.delay_ms(1u16);
+
+    ufmt::uwriteln!(serial, "Sending data: {}", data).void_unwrap();
+
+    // TODO macro?
+    if data & 0b00000001 != 0 {
+        data_pins.p0.set_high().void_unwrap();
+    } else {
+        data_pins.p0.set_low().void_unwrap();
+    }
+    if data & 0b00000010 != 0 {
+        data_pins.p1.set_high().void_unwrap();
+    } else {
+        data_pins.p1.set_low().void_unwrap();
+    }
+    if data & 0b00000100 != 0 {
+        data_pins.p2.set_high().void_unwrap();
+    } else {
+        data_pins.p2.set_low().void_unwrap();
+    }
+    if data & 0b00001000 != 0 {
+        data_pins.p3.set_high().void_unwrap();
+    } else {
+        data_pins.p3.set_low().void_unwrap();
+    }
+    if data & 0b00010000 != 0 {
+        data_pins.p4.set_high().void_unwrap();
+    } else {
+        data_pins.p4.set_low().void_unwrap();
+    }
+    if data & 0b00100000 != 0 {
+        data_pins.p5.set_high().void_unwrap();
+    } else {
+        data_pins.p5.set_low().void_unwrap();
+    }
+    if data & 0b01000000 != 0 {
+        data_pins.p6.set_high().void_unwrap();
+    } else {
+        data_pins.p6.set_low().void_unwrap();
+    }
+    if data & 0b10000000 != 0 {
+        data_pins.p7.set_high().void_unwrap();
+    } else {
+        data_pins.p7.set_low().void_unwrap();
+    }
+
+    handshake_pins.outgoing_handshake.set_low().void_unwrap();
+    delay.delay_us(5u8); // TODO race condition somewhere? Too fast for the 6502?
+
+    while handshake_pins.incoming_handshake.is_high().void_unwrap() {}
+    handshake_pins.outgoing_handshake.set_high().void_unwrap();
+    delay.delay_us(5u8); // TODO race condition somewhere? Too fast for the 6502?
+
+    while handshake_pins.incoming_handshake.is_low().void_unwrap() {}
+}
+
+trait Out: OutputPin<Error = Void> {}
+
+impl<T> Out for T where T: OutputPin<Error = Void> {}
+
+trait In: InputPin<Error = Void> {}
+
+impl<T> In for T where T: InputPin<Error = Void> {}
