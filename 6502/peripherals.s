@@ -89,17 +89,21 @@ print_null_terminated_string_stack:
     RTS
 
 print_length_string_stack:
-  LDA (0,X)
-  STA N
-  LDA (1,X)
-  STA N + 1
+  LDA 0,X
+  STA N + 6
+  LDA 1,X
+  STA N + 7
   POP
+  LDA 0,X
   LDY #0
   .loop:
-    LDY (N),Y
+    LDA (N + 6),Y
     JSR print_char
-    CPY 0, X
-    BNE .loop
+    TYA
+    CMP 0, X
+    BEQ .end
+    INY
+    BRA .loop
   .end:
     POP
     RTS

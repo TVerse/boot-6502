@@ -56,12 +56,16 @@ irq:
     LDA TRANSFER_IN_PROGRESS
     BNE .continue_transfer
     .start_transfer:
+;      LDA #"S"
+;      JSR print_char
       INC TRANSFER_IN_PROGRESS
       LDA PORTA
       STA TRANSFER_LENGTH
       STZ TRANSFER_POINTER
       BRA .buttons
     .continue_transfer:
+;      LDA #"C"
+;      JSR print_char
       PHY
       LDY TRANSFER_POINTER
       LDA PORTA
@@ -69,8 +73,11 @@ irq:
       PLY
       INC TRANSFER_POINTER
       LDA TRANSFER_LENGTH
+      INC
       CMP TRANSFER_POINTER
       BNE .buttons
+;      LDA #"D"
+;      JSR print_char
       INC TRANSFER_DONE
       STZ TRANSFER_IN_PROGRESS
   .buttons:

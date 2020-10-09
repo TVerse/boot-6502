@@ -39,6 +39,8 @@ fn main() -> ! {
     let mut serial =
         arduino_mega2560::Serial::new(dp.USART0, pins.d0, pins.d1.into_output(&pins.ddr), 57600);
 
+    let mut reset = pins.d22.into_output(&pins.ddr);
+
     let mut ca1 = pins.d51.into_output(&pins.ddr);
     let ca2 = pins.d53;
     let mut pa0 = pins.d43.into_output(&pins.ddr);
@@ -52,9 +54,13 @@ fn main() -> ! {
 
     ca1.set_high().void_unwrap();
 
-    ufmt::uwriteln!(&mut serial, "Delaying").void_unwrap();
+    reset.set_low().void_unwrap();
+    delay.delay_us(5u8);
+    reset.set_high().void_unwrap();
 
-    delay.delay_ms(5000u16);
+    ufmt::uwriteln!(&mut serial, "Waiting for start...").void_unwrap();
+
+    delay.delay_ms(2000u16); // TODO can get a signal somehow?
 
     let mut handshake_pins = HandshakePins::new(&ca2, &mut ca1);
 
@@ -62,13 +68,17 @@ fn main() -> ! {
         &mut pa0, &mut pa1, &mut pa2, &mut pa3, &mut pa4, &mut pa5, &mut pa6, &mut pa7,
     );
 
-    let mut send_data = SendData::new(&mut handshake_pins, &mut send_data_pins);
+    ufmt::uwriteln!(&mut serial, "Sending!").void_unwrap();
 
-    let s = "Hello how are you I'm fine thanks but I need to pad this to like 70 characters or so I'm going to keep typing for a bit ok thanks";
+    let mut send_data = SendData::new(&mut handshake_pins, &mut send_data_pins, &mut serial);
 
-    let command = Command::DisplayString {string:s};
+    let s = "Hello world!";
+
+    let command = Command::DisplayString { string: s };
 
     send_data.send(command);
+
+    ufmt::uwriteln!(&mut serial, "Done!").void_unwrap();
 
     loop {
         delay.delay_ms(10000u16);
