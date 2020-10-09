@@ -59,7 +59,7 @@ reset_base:
   JSR lcd_instruction
 
   LITERAL initialized_base
-  JSR print_string_stack
+  JSR print_null_terminated_string_stack
 
   STZ PORTA
 
@@ -173,12 +173,12 @@ error:
   LDA #%00000001
   JSR lcd_instruction
   LITERAL error_message
-  JSR print_string_stack
+  JSR print_null_terminated_string_stack
   LDA 0,X
   ORA 1,X
   BEQ .loop
   .has_message:
-    JSR print_string_stack
+    JSR print_null_terminated_string_stack
   .loop:
     WAI
     JMP .loop

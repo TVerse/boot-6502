@@ -6,9 +6,9 @@ use core::panic::PanicInfo;
 
 use arduino_mega2560::prelude::*;
 use atmega2560_hal::port;
-use avr_hal_generic::hal::digital::v2::InputPin;
-use avr_hal_generic::hal::digital::v2::OutputPin;
-use avr_hal_generic::void::{ResultVoidExt, Void};
+use avr_hal_generic::void::ResultVoidExt;
+
+use boot_6502::*;
 
 static mut PANIC_LED: MaybeUninit<port::portb::PB1<port::mode::Output>> = MaybeUninit::uninit();
 
@@ -56,145 +56,21 @@ fn main() -> ! {
 
     delay.delay_ms(5000u16);
 
-    let mut handshake_pins = HandshakePins {
-        incoming_handshake: &ca2,
-        outgoing_handshake: &mut ca1,
-    };
+    let mut handshake_pins = HandshakePins::new(&ca2, &mut ca1);
 
-    let mut send_data_pins = SendDataPins {
-        p0: &mut pa0,
-        p1: &mut pa1,
-        p2: &mut pa2,
-        p3: &mut pa3,
-        p4: &mut pa4,
-        p5: &mut pa5,
-        p6: &mut pa6,
-        p7: &mut pa7,
-    };
+    let mut send_data_pins = SendDataPins::new(
+        &mut pa0, &mut pa1, &mut pa2, &mut pa3, &mut pa4, &mut pa5, &mut pa6, &mut pa7,
+    );
 
-    let s = b"Hello how are you I'm fine thanks but I need to pad this to like 70 characters or so I'm going to keep typing for a bit ok thanks";
+    let mut send_data = SendData::new(&mut handshake_pins, &mut send_data_pins);
 
-    let len = (s.len() + 1) as u8;
+    let s = "Hello how are you I'm fine thanks but I need to pad this to like 70 characters or so I'm going to keep typing for a bit ok thanks";
 
-    send_byte(&mut handshake_pins, &mut send_data_pins, len, &mut serial);
+    let command = Command::DisplayString {string:s};
 
-    for data in s {
-        send_byte(&mut handshake_pins, &mut send_data_pins, *data, &mut serial);
-        delay.delay_us(100u16);
-    }
-
-    send_byte(&mut handshake_pins, &mut send_data_pins, 0, &mut serial);
+    send_data.send(command);
 
     loop {
         delay.delay_ms(10000u16);
     }
 }
-
-struct HandshakePins<'a, I, O> {
-    incoming_handshake: &'a I,
-    outgoing_handshake: &'a mut O,
-}
-
-struct SendDataPins<'a, P0, P1, P2, P3, P4, P5, P6, P7> {
-    p0: &'a mut P0,
-    p1: &'a mut P1,
-    p2: &'a mut P2,
-    p3: &'a mut P3,
-    p4: &'a mut P4,
-    p5: &'a mut P5,
-    p6: &'a mut P6,
-    p7: &'a mut P7,
-}
-
-struct ReceiveDataPins<'a, P0, P1, P2, P3, P4, P5, P6, P7> {
-    p0: &'a P0,
-    p1: &'a P1,
-    p2: &'a P2,
-    p3: &'a P3,
-    p4: &'a P4,
-    p5: &'a P5,
-    p6: &'a P6,
-    p7: &'a P7,
-}
-
-fn send_byte<I, O, P0, P1, P2, P3, P4, P5, P6, P7>(
-    handshake_pins: &mut HandshakePins<I, O>,
-    data_pins: &mut SendDataPins<P0, P1, P2, P3, P4, P5, P6, P7>,
-    data: u8,
-    serial: &mut arduino_mega2560::Serial<atmega2560_hal::port::mode::Floating>,
-) where
-    I: In,
-    O: Out,
-    P0: Out,
-    P1: Out,
-    P2: Out,
-    P3: Out,
-    P4: Out,
-    P5: Out,
-    P6: Out,
-    P7: Out,
-{
-    let mut delay = arduino_mega2560::Delay::new();
-    delay.delay_ms(1u16);
-
-    ufmt::uwriteln!(serial, "Sending data: {}", data).void_unwrap();
-
-    // TODO macro?
-    if data & 0b00000001 != 0 {
-        data_pins.p0.set_high().void_unwrap();
-    } else {
-        data_pins.p0.set_low().void_unwrap();
-    }
-    if data & 0b00000010 != 0 {
-        data_pins.p1.set_high().void_unwrap();
-    } else {
-        data_pins.p1.set_low().void_unwrap();
-    }
-    if data & 0b00000100 != 0 {
-        data_pins.p2.set_high().void_unwrap();
-    } else {
-        data_pins.p2.set_low().void_unwrap();
-    }
-    if data & 0b00001000 != 0 {
-        data_pins.p3.set_high().void_unwrap();
-    } else {
-        data_pins.p3.set_low().void_unwrap();
-    }
-    if data & 0b00010000 != 0 {
-        data_pins.p4.set_high().void_unwrap();
-    } else {
-        data_pins.p4.set_low().void_unwrap();
-    }
-    if data & 0b00100000 != 0 {
-        data_pins.p5.set_high().void_unwrap();
-    } else {
-        data_pins.p5.set_low().void_unwrap();
-    }
-    if data & 0b01000000 != 0 {
-        data_pins.p6.set_high().void_unwrap();
-    } else {
-        data_pins.p6.set_low().void_unwrap();
-    }
-    if data & 0b10000000 != 0 {
-        data_pins.p7.set_high().void_unwrap();
-    } else {
-        data_pins.p7.set_low().void_unwrap();
-    }
-
-    handshake_pins.outgoing_handshake.set_low().void_unwrap();
-    delay.delay_us(5u8); // TODO race condition somewhere? Too fast for the 6502?
-
-    while handshake_pins.incoming_handshake.is_high().void_unwrap() {}
-    handshake_pins.outgoing_handshake.set_high().void_unwrap();
-    delay.delay_us(5u8); // TODO race condition somewhere? Too fast for the 6502?
-
-    while handshake_pins.incoming_handshake.is_low().void_unwrap() {}
-}
-
-trait Out: OutputPin<Error = Void> {}
-
-impl<T> Out for T where T: OutputPin<Error = Void> {}
-
-trait In: InputPin<Error = Void> {}
-
-impl<T> In for T where T: InputPin<Error = Void> {}

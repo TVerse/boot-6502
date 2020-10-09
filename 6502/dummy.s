@@ -16,7 +16,7 @@ reset:
   STZ INITIALIZATION_DONE
 
   ;LITERAL waiting
-  ;JSR print_string_stack
+  ;JSR print_null_terminated_string_stack
 
   STZ TRANSFER_DONE
   STZ TRANSFER_IN_PROGRESS
@@ -35,8 +35,9 @@ loop:
   WAI
   LDA TRANSFER_DONE
   BEQ loop
+  AT_ADDRESS_8BIT TRANSFER_LENGTH
   LITERAL TRANSFER_RESULT
-  JSR print_string_stack
+  JSR print_length_string_stack
   STZ TRANSFER_DONE
   JMP loop
 

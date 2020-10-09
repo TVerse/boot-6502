@@ -33,3 +33,17 @@
     STZ 1,X
   .endmacro
 
+  .macro AT_ADDRESS,addr
+    DEX2
+    LDA <\lit
+    STA 0,X
+    LDA >\lit
+    STA 1,X
+  .endmacro
+
+  .macro AT_ADDRESS_8BIT,addr
+    DEX2
+    LDA \lit
+    STA 0,X
+    STZ 1,X
+  .endmacro

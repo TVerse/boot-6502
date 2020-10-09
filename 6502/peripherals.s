@@ -75,7 +75,7 @@ print_char:
   STA PORTB
   RTS
 
-print_string_stack:
+print_null_terminated_string_stack:
   .loop:
     LDA (0,X)
     BEQ .end
@@ -84,6 +84,22 @@ print_string_stack:
     BNE .loop
     INC 1,X
     BRA .loop
+  .end:
+    POP
+    RTS
+
+print_length_string_stack:
+  LDA (0,X)
+  STA N
+  LDA (1,X)
+  STA N + 1
+  POP
+  LDY #0
+  .loop:
+    LDY (N),Y
+    JSR print_char
+    CPY 0, X
+    BNE .loop
   .end:
     POP
     RTS
