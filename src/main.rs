@@ -62,8 +62,6 @@ fn main() -> ! {
 
     delay.delay_ms(2000u16); // TODO can get a signal somehow?
 
-    panic!();
-
     let mut handshake_pins = HandshakePins::new(&ca2, &mut ca1);
 
     let mut send_data_pins = SendDataPins::new(
