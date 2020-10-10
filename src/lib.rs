@@ -150,7 +150,17 @@ where
     }
 }
 
-// pub struct ReceiveDataPins<'a, P0, P1, P2, P3, P4, P5, P6, P7> {
+// pub struct ReceiveDataPins<'a, P0, P1, P2, P3, P4, P5, P6, P7>
+// where
+//     P0: In,
+//     P1: In,
+//     P2: In,
+//     P3: In,
+//     P4: In,
+//     P5: In,
+//     P6: In,
+//     P7: In,
+// {
 //     p0: &'a P0,
 //     p1: &'a P1,
 //     p2: &'a P2,
