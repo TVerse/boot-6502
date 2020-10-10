@@ -51,7 +51,17 @@ where
     }
 }
 
-pub struct SendDataPins<'a, P0, P1, P2, P3, P4, P5, P6, P7> {
+pub struct SendDataPins<'a, P0, P1, P2, P3, P4, P5, P6, P7>
+where
+    P0: Out,
+    P1: Out,
+    P2: Out,
+    P3: Out,
+    P4: Out,
+    P5: Out,
+    P6: Out,
+    P7: Out,
+{
     p0: &'a mut P0,
     p1: &'a mut P1,
     p2: &'a mut P2,
@@ -153,9 +163,9 @@ where
 
 // TODO IDEA: make this a trait
 // Should make it easier to handle creation restrictions (fallible new)
-pub enum Command<'a> {
-    DisplayString { string: &'a str },
-}
+// pub enum Command<'a> {
+//     DisplayString { string: &'a str },
+// }
 
 pub struct SendData<'a, I, O, P0, P1, P2, P3, P4, P5, P6, P7>
 where
@@ -200,21 +210,17 @@ where
         }
     }
 
-    pub fn send(&mut self, command: Command) {
-        match command {
-            Command::DisplayString { string } => {
-                let s = string.bytes();
-                let len = (s.len() - 1) as u8; // TODO make this explicit!
+    pub fn send(&mut self, string: &str) {
+        let s = string.bytes();
+        let len = (s.len() - 1) as u8; // TODO make this explicit!
 
-                self.send_byte(len);
+        self.send_byte(len);
 
-                let mut delay = arduino_mega2560::Delay::new();
-                delay.delay_us(100u8);
+        let mut delay = arduino_mega2560::Delay::new();
+        delay.delay_us(100u8);
 
-                for data in s {
-                    self.send_byte(data);
-                }
-            }
+        for data in s {
+            self.send_byte(data);
         }
     }
 

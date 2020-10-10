@@ -74,9 +74,7 @@ fn main() -> ! {
 
     let s = "Hello world!";
 
-    let command = Command::DisplayString { string: s };
-
-    send_data.send(command);
+    send_data.send(s);
 
     ufmt::uwriteln!(&mut serial, "Done!").void_unwrap();
 
