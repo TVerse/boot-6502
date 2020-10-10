@@ -62,7 +62,20 @@ fn main() -> ! {
 
     delay.delay_ms(2000u16); // TODO can get a signal somehow?
 
-    let pins = Pins::new( &pins.ddr, &mut serial, ca2, ca1, pa0, pa1, pa2, pa3, pa4, pa5, pa6, pa7);
+    let pins = Pins::new(
+        &pins.ddr,
+        &mut serial,
+        ca2,
+        ca1,
+        pa0,
+        pa1,
+        pa2,
+        pa3,
+        pa4,
+        pa5,
+        pa6,
+        pa7,
+    );
 
     let s = "Hello world!";
 
