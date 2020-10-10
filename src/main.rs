@@ -43,14 +43,14 @@ fn main() -> ! {
 
     let mut ca1 = pins.d51.into_output(&pins.ddr);
     let ca2 = pins.d53;
-    let mut pa0 = pins.d43.into_output(&pins.ddr);
-    let mut pa1 = pins.d41.into_output(&pins.ddr);
-    let mut pa2 = pins.d39.into_output(&pins.ddr);
-    let mut pa3 = pins.d37.into_output(&pins.ddr);
-    let mut pa4 = pins.d35.into_output(&pins.ddr);
-    let mut pa5 = pins.d33.into_output(&pins.ddr);
-    let mut pa6 = pins.d31.into_output(&pins.ddr);
-    let mut pa7 = pins.d29.into_output(&pins.ddr);
+    let pa0 = pins.d43.into_output(&pins.ddr);
+    let pa1 = pins.d41.into_output(&pins.ddr);
+    let pa2 = pins.d39.into_output(&pins.ddr);
+    let pa3 = pins.d37.into_output(&pins.ddr);
+    let pa4 = pins.d35.into_output(&pins.ddr);
+    let pa5 = pins.d33.into_output(&pins.ddr);
+    let pa6 = pins.d31.into_output(&pins.ddr);
+    let pa7 = pins.d29.into_output(&pins.ddr);
 
     ca1.set_high().void_unwrap();
 
@@ -62,19 +62,11 @@ fn main() -> ! {
 
     delay.delay_ms(2000u16); // TODO can get a signal somehow?
 
-    let mut handshake_pins = HandshakePins::new(&ca2, &mut ca1);
-
-    let mut send_data_pins = SendDataPins::new(
-        &mut pa0, &mut pa1, &mut pa2, &mut pa3, &mut pa4, &mut pa5, &mut pa6, &mut pa7,
-    );
-
-    ufmt::uwriteln!(&mut serial, "Sending!").void_unwrap();
-
-    let mut send_data = SendData::new(&mut handshake_pins, &mut send_data_pins, &mut serial);
+    let pins = Pins::new( &pins.ddr, &mut serial, ca2, ca1, pa0, pa1, pa2, pa3, pa4, pa5, pa6, pa7);
 
     let s = "Hello world!";
 
-    send_data.send(s);
+    let (_pins, _res) = pins.execute(s, false);
 
     ufmt::uwriteln!(&mut serial, "Done!").void_unwrap();
 
