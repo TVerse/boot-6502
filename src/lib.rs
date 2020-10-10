@@ -1,7 +1,7 @@
 #![no_std]
 
+use arduino_mega2560::{DDR, Delay, Serial};
 use arduino_mega2560::prelude::*;
-use arduino_mega2560::{Delay, Serial, DDR};
 use atmega2560_hal::port;
 use atmega2560_hal::port::mode::{Floating, Input, Output};
 use avr_hal_generic::void::ResultVoidExt;
@@ -18,11 +18,43 @@ type P5<A> = port::portc::PC4<A>;
 type P6<A> = port::portc::PC6<A>;
 type P7<A> = port::porta::PA7<A>;
 
+/*
+Commands:
+* Write N bytes to address A
+* Read N bytes from address A
+* Read from register
+* JMP A
+* JSR A
+* Print string at address A? (can use jump for this)
+ */
+
+pub type Result<A> = core::result::Result<A, &'static str>;
+
+static TOO_LONG_ERROR: &'static str = "Length should be between 1 and 255";
+
+pub struct Length {
+    reduced_length: u8
+}
+
+impl Length {
+    pub fn new(l: usize) -> Result<Length> {
+        if l == 0 || l > 256 {
+            Err(TOO_LONG_ERROR)
+        } else {
+            Ok(Length { reduced_length: (l - 1) as u8 })
+        }
+    }
+
+    pub fn length(&self) -> usize {
+        (self.reduced_length as usize) + 1
+    }
+}
+
 pub struct Pins<'a> {
     handshake_pins: HandshakePins,
     data_pins: OutputDataPins<'a>,
-    delay: Delay,
-    serial: &'a mut Serial<Floating>,
+    pub delay: Delay,
+    pub serial: &'a mut Serial<Floating>,
 }
 
 impl<'a> Pins<'a> {
@@ -61,30 +93,29 @@ impl<'a> Pins<'a> {
         }
     }
 
-    pub fn execute(mut self, data: &str, expect_return: bool) -> (Self, ()) {
+    pub fn execute(mut self, send_len: Option<Length>, return_len: Option<Length>, buffer: &mut [u8]) -> Result<Self> {
         ufmt::uwriteln!(self.serial, "Sending!").void_unwrap();
 
-        let s = data.bytes();
-        let len = (s.len() - 1) as u8; // TODO make this explicit!
+        if let Some(len) = send_len {
+            self.send_byte(len.reduced_length);
 
-        self.send_byte(len);
+            self.delay.delay_us(100u8);
 
-        self.delay.delay_us(100u8);
-
-        for data in s {
-            self.send_byte(data);
+            for data in buffer.iter().take(len.reduced_length as usize) {
+                self.send_byte(*data);
+            }
         }
 
-        if expect_return {
+        if let Some(_len) = return_len {
             let mut inputpins = InputPins::from(self);
 
             let _result = inputpins.receive_byte();
 
             let pins = Self::from(inputpins);
 
-            (pins, ())
+            Ok(pins)
         } else {
-            (self, ())
+            Ok(self)
         }
     }
 

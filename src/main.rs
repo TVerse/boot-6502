@@ -58,10 +58,6 @@ fn main() -> ! {
     delay.delay_us(5u8);
     reset.set_high().void_unwrap();
 
-    ufmt::uwriteln!(&mut serial, "Waiting for start...").void_unwrap();
-
-    delay.delay_ms(2000u16); // TODO can get a signal somehow?
-
     let pins = Pins::new(
         &pins.ddr,
         &mut serial,
@@ -77,13 +73,33 @@ fn main() -> ! {
         pa7,
     );
 
+    match execute(pins) {
+        Ok(_) => loop {
+            delay.delay_ms(10000u16);
+        },
+        Err(e) => {
+            ufmt::uwriteln!(&mut serial, "ERROR: {}", e).void_unwrap();
+            panic!(e);
+        }
+    }
+}
+
+fn execute(mut pins: Pins) -> Result<()> {
+    ufmt::uwriteln!(&mut pins.serial, "Waiting for start...").void_unwrap();
+
+    pins.delay.delay_ms(2000u16); // TODO can get a signal somehow?
+
     let s = "Hello world!";
 
-    let (_pins, _res) = pins.execute(s, false);
+    let send_len = Length::new(s.len())?;
 
-    ufmt::uwriteln!(&mut serial, "Done!").void_unwrap();
+    let mut buffer = [0; 256];
 
-    loop {
-        delay.delay_ms(10000u16);
-    }
+    s.bytes().zip(buffer.iter_mut()).for_each(|(b, ptr)| *ptr = b);
+
+    let mut pins = pins.execute(Some(send_len), None, &mut buffer)?;
+
+    ufmt::uwriteln!(&mut pins.serial, "Done!").void_unwrap();
+
+    Ok(())
 }
