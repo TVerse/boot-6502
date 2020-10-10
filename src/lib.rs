@@ -1,7 +1,7 @@
 #![no_std]
 
-use arduino_mega2560::{DDR, Delay, Serial};
 use arduino_mega2560::prelude::*;
+use arduino_mega2560::{Delay, Serial, DDR};
 use atmega2560_hal::port;
 use atmega2560_hal::port::mode::{Floating, Input, Output};
 use avr_hal_generic::void::ResultVoidExt;

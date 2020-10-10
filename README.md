@@ -31,12 +31,12 @@ Lengths are nonzero, 0 is interpreted as 256.
 
 | Name | Command byte | Other bytes | Response format | | Max request length | Max response length |
 | --- | --- | --- | --- | --- | --- |
-| Display string | 0x01 | LEN DATA | ACK | | 258 | 1 |
-| Write bytes | 0x02 | ADDR LEN DATA | ACK | 260 | 1 |
-| Read bytes | 0x03 | ADDR LEN | ACKDATA DATA| 4 | 257 |
-| Read register | 0x04 | REGISTER | ACKDATA VALUE | 2 | 2 |
-| JMP A | 0x05 | ADDR | ACK | 3 | 1 |
-| JSR A | 0x06 | ADDR | ACK | 3 | 1 |
+| Display string | 0xFF | LEN DATA | ACK | | 258 | 1 |
+| Write bytes | 0x01 | ADDR LEN DATA | ACK | 260 | 1 |
+| Read bytes | 0x02 | ADDR LEN | ACKDATA DATA| 4 | 257 |
+| Read register | 0x03 | REGISTER | ACKDATA VALUE | 2 | 2 |
+| JMP A | 0x04 | ADDR | ACK | 3 | 1 |
+| JSR A | 0x05 | ADDR | ACK | 3 | 1 |
 
 Q: ACK before or after return for JSR?
 

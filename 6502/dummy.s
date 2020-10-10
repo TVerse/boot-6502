@@ -2,11 +2,19 @@
 
   .org ROM_START_ADDR
 
-TRANSFER_IN_PROGRESS = $1000
-TRANSFER_DONE = $1001
-TRANSFER_LENGTH = $1002
-TRANSFER_POINTER = $1003
-TRANSFER_RESULT = $1100
+  .struct TransferState
+in_progress .byte 0
+done .byte 0
+current_byte_index .byte 0
+result_pointer .word 0
+result_length .byte 0
+  .endstruct
+
+  .dsect
+  .org $0200
+transfer_state: TransferState
+transfer_result: .blk 256
+  .dend
 
 reset:
   ; Turn on cursor
@@ -18,8 +26,12 @@ reset:
   ;LITERAL waiting
   ;JSR print_null_terminated_string_stack
 
-  STZ TRANSFER_DONE
-  STZ TRANSFER_IN_PROGRESS
+  STZ transfer_state + TransferState.done
+  STZ transfer_state + TransferState.in_progress
+  LDA #<transfer_result
+  STA transfer_state + TransferState.result_pointer
+  LDA #>transfer_result
+  STA transfer_state + TransferState.result_pointer + 1
 
   STZ DDRA
 
@@ -33,12 +45,12 @@ reset:
 
 loop:
   WAI
-  LDA TRANSFER_DONE
+  LDA transfer_state + TransferState.done
   BEQ loop
-  AT_ADDRESS_8BIT TRANSFER_LENGTH
-  LITERAL TRANSFER_RESULT
+  AT_ADDRESS_8BIT transfer_state + TransferState.result_length
+  AT_ADDRESS transfer_state + TransferState.result_pointer
   JSR print_length_string_stack
-  STZ TRANSFER_DONE
+  STZ transfer_state + TransferState.done
   JMP loop
 
 waiting:
@@ -51,34 +63,39 @@ irq:
   BPL .buttons ; Not the VIA?
   AND #%00000010
   BEQ .buttons
-    LDA TRANSFER_DONE
+    LDA transfer_state + TransferState.done
     BNE .buttons ; TODO what if the other side is too fast?
-    LDA TRANSFER_IN_PROGRESS
+    LDA transfer_state + TransferState.in_progress
     BNE .continue_transfer
     .start_transfer:
 ;      LDA #"S"
 ;      JSR print_char
-      INC TRANSFER_IN_PROGRESS
+      INC transfer_state + TransferState.in_progress
       LDA PORTA
-      STA TRANSFER_LENGTH
-      STZ TRANSFER_POINTER
+      STA transfer_state + TransferState.result_length
+      STZ transfer_state + TransferState.current_byte_index
       BRA .buttons
     .continue_transfer:
 ;      LDA #"C"
 ;      JSR print_char
       PHY
-      LDY TRANSFER_POINTER
+      LDY transfer_state + TransferState.current_byte_index
+      LDA transfer_state + TransferState.result_pointer
+      STA N_IRQ
+      LDA transfer_state + TransferState.result_pointer + 1
+      STA N_IRQ + 1
       LDA PORTA
-      STA TRANSFER_RESULT,Y
+      STA (N_IRQ),Y
       PLY
-      INC TRANSFER_POINTER
-      LDA TRANSFER_LENGTH
-      CMP TRANSFER_POINTER
+      INC transfer_state + TransferState.current_byte_index
+      LDA transfer_state + TransferState.current_byte_index
+      LDA transfer_state + TransferState.result_length
+      CMP transfer_state + TransferState.current_byte_index
       BNE .buttons
 ;      LDA #"D"
 ;      JSR print_char
-      INC TRANSFER_DONE
-      STZ TRANSFER_IN_PROGRESS
+      INC transfer_state + TransferState.done
+      STZ transfer_state + TransferState.in_progress
   .buttons:
     JSR read_buttons
   .done:

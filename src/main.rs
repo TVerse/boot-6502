@@ -89,7 +89,7 @@ fn execute(mut pins: Pins) -> Result<()> {
 
     pins.delay.delay_ms(2000u16); // TODO can get a signal somehow?
 
-    let s = "Hello world!";
+    let s = "Hello, World!";
 
     let mut pins = pins.execute(s.as_bytes())?;
 
