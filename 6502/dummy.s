@@ -73,7 +73,6 @@ irq:
       PLY
       INC TRANSFER_POINTER
       LDA TRANSFER_LENGTH
-      INC
       CMP TRANSFER_POINTER
       BNE .buttons
 ;      LDA #"D"

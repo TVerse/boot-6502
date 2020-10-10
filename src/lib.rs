@@ -33,7 +33,7 @@ pub type Result<A> = core::result::Result<A, &'static str>;
 static TOO_LONG_ERROR: &'static str = "Length should be between 1 and 255";
 
 pub struct Length {
-    reduced_length: u8
+    wrapped_length: u8,
 }
 
 impl Length {
@@ -41,12 +41,18 @@ impl Length {
         if l == 0 || l > 256 {
             Err(TOO_LONG_ERROR)
         } else {
-            Ok(Length { reduced_length: (l - 1) as u8 })
+            Ok(Length {
+                wrapped_length: l as u8,
+            })
         }
     }
 
     pub fn length(&self) -> usize {
-        (self.reduced_length as usize) + 1
+        if self.wrapped_length == 0 {
+            256
+        } else {
+            self.wrapped_length.into()
+        }
     }
 }
 
@@ -93,29 +99,31 @@ impl<'a> Pins<'a> {
         }
     }
 
-    pub fn execute(mut self, send_len: Option<Length>, return_len: Option<Length>, buffer: &mut [u8]) -> Result<Self> {
+    pub fn execute(mut self, data: &[u8]) -> Result<Self> {
         ufmt::uwriteln!(self.serial, "Sending!").void_unwrap();
 
-        if let Some(len) = send_len {
-            self.send_byte(len.reduced_length);
+        if data.len() > 256 {
+            Err(TOO_LONG_ERROR)
+        } else {
+            self.send_byte(data.len() as u8);
 
             self.delay.delay_us(100u8);
 
-            for data in buffer.iter().take(len.reduced_length as usize) {
-                self.send_byte(*data);
+            for d in data.iter().take(data.len()) {
+                self.send_byte(*d);
             }
-        }
 
-        if let Some(_len) = return_len {
-            let mut inputpins = InputPins::from(self);
+            if false {
+                let mut inputpins = InputPins::from(self);
 
-            let _result = inputpins.receive_byte();
+                let _result = inputpins.receive_byte();
 
-            let pins = Self::from(inputpins);
+                let pins = Self::from(inputpins);
 
-            Ok(pins)
-        } else {
-            Ok(self)
+                Ok(pins)
+            } else {
+                Ok(self)
+            }
         }
     }
 

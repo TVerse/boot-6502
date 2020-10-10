@@ -99,14 +99,12 @@ print_length_string_stack:
   .loop:
     LDA (N + 6),Y
     JSR print_char
+    INY
     TYA
     CMP 0, X
-    BEQ .end
-    INY
-    BRA .loop
-  .end:
-    POP
-    RTS
+    BNE .loop
+  POP
+  RTS
 
 ; Returns button state in A and BUTTON_STATE_ADDR
 ; 0000rldu

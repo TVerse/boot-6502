@@ -91,13 +91,7 @@ fn execute(mut pins: Pins) -> Result<()> {
 
     let s = "Hello world!";
 
-    let send_len = Length::new(s.len())?;
-
-    let mut buffer = [0; 256];
-
-    s.bytes().zip(buffer.iter_mut()).for_each(|(b, ptr)| *ptr = b);
-
-    let mut pins = pins.execute(Some(send_len), None, &mut buffer)?;
+    let mut pins = pins.execute(s.as_bytes())?;
 
     ufmt::uwriteln!(&mut pins.serial, "Done!").void_unwrap();
 
