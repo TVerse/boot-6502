@@ -10,7 +10,7 @@ use avr_hal_generic::void::ResultVoidExt;
 
 use boot_6502::*;
 
-static mut PANIC_LED: MaybeUninit<port::portb::PB1<port::mode::Output>> = MaybeUninit::uninit();
+static mut PANIC_LED: MaybeUninit<port::porta::PA1<port::mode::Output>> = MaybeUninit::uninit();
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
@@ -33,7 +33,7 @@ fn main() -> ! {
     );
 
     unsafe {
-        PANIC_LED = MaybeUninit::new(pins.d52.into_output(&pins.ddr));
+        PANIC_LED = MaybeUninit::new(pins.d23.into_output(&pins.ddr));
     };
 
     let mut serial =
@@ -61,6 +61,8 @@ fn main() -> ! {
     ufmt::uwriteln!(&mut serial, "Waiting for start...").void_unwrap();
 
     delay.delay_ms(2000u16); // TODO can get a signal somehow?
+
+    panic!();
 
     let mut handshake_pins = HandshakePins::new(&ca2, &mut ca1);
 
