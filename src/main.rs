@@ -57,6 +57,10 @@ fn main() -> ! {
     delay.delay_us(5u8);
     reset.set_high().void_unwrap();
 
+    ufmt::uwriteln!(&mut serial, "Waiting for start...").void_unwrap();
+
+    while ca2.is_low().void_unwrap() {}
+
     let pins = Pins::new(
         &pins.ddr,
         &mut serial,
@@ -83,12 +87,7 @@ fn main() -> ! {
     }
 }
 
-fn execute(mut pins: Pins) -> Result<()> {
-    ufmt::uwriteln!(&mut pins.serial, "Waiting for start...").void_unwrap();
-    // TODO figure out why you get one extra interrupt when this is restarted
-    // TODO can get a signal somehow?
-    pins.delay.delay_ms(2000u16);
-
+fn execute(pins: Pins) -> Result<()> {
     let s = "Hi!";
 
     let pins = pins.execute(s.as_bytes())?;

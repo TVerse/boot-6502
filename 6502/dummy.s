@@ -50,8 +50,10 @@ loop:
   BEQ loop
   LDA #%00000000
   STA DDRA
-  LDA #$01
+  LDA #1
   STA PORTA
+  LDA #%00000010
+  STA IFR
   .wait_for_handshake:
     WAI
     LDA transfer_state + TransferState.data_taken_received
@@ -74,13 +76,15 @@ irq:
   BPL .buttons ; Not the VIA?
   AND #%00000010
   BEQ .buttons
+    LDA #"X"
+    JSR print_char
     LDA transfer_state + TransferState.done
     BNE .ack ; TODO what if the other side is too fast? Just get stuck here then...
     LDA transfer_state + TransferState.in_progress
     BNE .continue_transfer
     .start_transfer:
-;      LDA #"S"
-;      JSR print_char
+      LDA #"S"
+      JSR print_char
       STZ transfer_state + TransferState.done
       STZ transfer_state + TransferState.in_progress
       STZ transfer_state + TransferState.command
@@ -95,15 +99,16 @@ irq:
       STA transfer_state + TransferState.command
       BRA .buttons
     .continue_transfer:
-;      LDA #"C"
-;      JSR print_char
-      JSR continue_transfer
-  .ack:
-    LDA transfer_state + TransferData.data_taken_received
-    BEQ .buttons ; TODO shouldn't get here?
-    .outgoing_handshake
-      LDA #"A"
+      LDA #"C"
       JSR print_char
+      JSR continue_transfer
+      BRA .buttons
+  .ack:
+    LDA #"A"
+    JSR print_char
+    LDA transfer_state + TransferState.data_taken_received
+    BEQ .buttons ; TODO shouldn't get here?
+    .outgoing_handshake:
       LDA #%00000010
       STA IFR
       LDA #DEFAULT_DDRA
@@ -149,8 +154,8 @@ continue_transfer:
       BNE .return
       BRA .done
   .done:
-;    LDA #"D"
-;    JSR print_char
+    LDA #"D"
+    JSR print_char
     INC transfer_state + TransferState.done
     STZ transfer_state + TransferState.in_progress
   .return:

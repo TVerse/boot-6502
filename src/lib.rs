@@ -147,10 +147,11 @@ impl<'a> InputPins<'a> {
             handshake_pins,
             data_pins,
             delay,
+            serial,
             ..
         } = self;
 
-        handshake_pins.with_read_handshake(delay, || data_pins.read_data())
+        handshake_pins.with_read_handshake(delay, serial, || data_pins.read_data())
     }
 }
 
@@ -180,6 +181,7 @@ impl HandshakePins {
         delay.delay_us(5u8); // TODO race condition somewhere? Too fast for the 6502?
 
         while self.incoming_handshake.is_high().void_unwrap() {}
+
         self.outgoing_handshake.set_high().void_unwrap();
         delay.delay_us(5u8); // TODO race condition somewhere? Too fast for the 6502?
 
@@ -187,16 +189,28 @@ impl HandshakePins {
         delay.delay_us(10u8); // TODO same
     }
 
-    fn with_read_handshake<F: FnOnce() -> u8>(&mut self, _delay: &mut Delay, f: F) -> u8 {
+    fn with_read_handshake<F: FnOnce() -> u8>(
+        &mut self,
+        delay: &mut Delay,
+        serial: &mut Serial<Floating>,
+        f: F,
+    ) -> u8 {
+        ufmt::uwriteln!(serial, "Waiting for write...").void_unwrap();
         while self.incoming_handshake.is_high().void_unwrap() {}
 
+        delay.delay_us(200u8);
+
         let result = f();
+        ufmt::uwriteln!(serial, "Received {}", result).void_unwrap();
 
         self.outgoing_handshake.set_low().void_unwrap();
 
+        ufmt::uwriteln!(serial, "Waiting for line reset...").void_unwrap();
         while self.incoming_handshake.is_low().void_unwrap() {}
 
         self.outgoing_handshake.set_high().void_unwrap();
+
+        ufmt::uwriteln!(serial, "Received!").void_unwrap();
 
         result
     }
