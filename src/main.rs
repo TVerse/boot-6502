@@ -78,6 +78,7 @@ fn main() -> ! {
 
     match execute(pins) {
         Ok(_) => loop {
+            ufmt::uwriteln!(&mut serial, "Success!").void_unwrap();
             delay.delay_ms(10000u16);
         },
         Err(e) => {
@@ -90,11 +91,9 @@ fn main() -> ! {
 fn execute(pins: Pins) -> Result<()> {
     let s = "Hi!";
 
-    let pins = pins.execute(s.as_bytes())?;
-    let pins = pins.execute(s.as_bytes())?;
-    let mut pins = pins.execute(s.as_bytes())?;
-
-    ufmt::uwriteln!(&mut pins.serial, "Done!").void_unwrap();
+    pins.execute(s.as_bytes())?
+        .execute(s.as_bytes())?
+        .execute(s.as_bytes())?;
 
     Ok(())
 }

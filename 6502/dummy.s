@@ -45,25 +45,24 @@ reset:
   LDA PORTA
 
 loop:
-  WAI
-  LDA transfer_state + TransferState.done
-  BEQ loop
-  LDA #%00000000
-  STA DDRA
-  LDA #1
+  LDA #%10000010
+  STA IER
+  LDA PORTA
+  .wait_for_done:
+    WAI
+    LDA transfer_state + TransferState.done
+    BEQ .wait_for_done
+  STZ DDRA
+  LDA #$55 ; TODO should be #$01
   STA PORTA
-  LDA #%00000010
-  STA IFR
   .wait_for_handshake:
     WAI
     LDA transfer_state + TransferState.data_taken_received
     BEQ .wait_for_handshake
-  SEI
   AT_ADDRESS_8BIT transfer_state + TransferState.length
   AT_ADDRESS transfer_state + TransferState.data_pointer
   JSR print_length_string_stack
   STZ transfer_state + TransferState.done
-  CLI
   JMP loop
 
 waiting:
@@ -79,7 +78,7 @@ irq:
     LDA #"X"
     JSR print_char
     LDA transfer_state + TransferState.done
-    BNE .ack ; TODO what if the other side is too fast? Just get stuck here then...
+    BNE .ack
     LDA transfer_state + TransferState.in_progress
     BNE .continue_transfer
     .start_transfer:
@@ -103,18 +102,19 @@ irq:
       JSR print_char
       JSR continue_transfer
       BRA .buttons
-  .ack:
-    LDA #"A"
-    JSR print_char
-    LDA transfer_state + TransferState.data_taken_received
-    BEQ .buttons ; TODO shouldn't get here?
-    .outgoing_handshake:
-      LDA #%00000010
-      STA IFR
-      LDA #DEFAULT_DDRA
-      STA DDRA
-      INC transfer_state + TransferState.data_taken_received
-      BRA .buttons
+    .ack:
+      LDA #"A"
+      JSR print_char
+      LDA transfer_state + TransferState.data_taken_received
+      BEQ .buttons ; TODO shouldn't get here?
+      .outgoing_handshake:
+        LDA #%00000010
+        STA IFR
+        STA IER
+        LDA #DEFAULT_DDRA
+        STA DDRA
+        INC transfer_state + TransferState.data_taken_received
+        BRA .buttons
   .buttons:
     JSR read_buttons
   .done:

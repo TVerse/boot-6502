@@ -32,11 +32,13 @@ pub type Result<A> = core::result::Result<A, &'static str>;
 
 static TOO_LONG_ERROR: &str = "Length should be between 1 and 255";
 
+static RECEIVED_UNEXPECTED_BYTE_ERROR: &str = "Received unexpected byte";
+
 pub struct Pins<'a> {
     handshake_pins: HandshakePins,
     data_pins: OutputDataPins<'a>,
-    pub delay: Delay,
-    pub serial: &'a mut Serial<Floating>,
+    delay: Delay,
+    serial: &'a mut Serial<Floating>,
 }
 
 impl<'a> Pins<'a> {
@@ -93,13 +95,16 @@ impl<'a> Pins<'a> {
 
             let result = inputpins.receive_byte();
 
-            if result != 0x01 {
-                panic!("Wrong result?")
+            match result {
+                0x01 => Err(RECEIVED_UNEXPECTED_BYTE_ERROR),
+                _ => {
+                    let pins = Self::from(inputpins);
+
+                    ufmt::uwriteln!(pins.serial, "Done!").void_unwrap();
+
+                    Ok(pins)
+                }
             }
-
-            let pins = Self::from(inputpins);
-
-            Ok(pins)
         }
     }
 
