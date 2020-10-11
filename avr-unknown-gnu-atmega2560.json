@@ -27,5 +27,6 @@
   "singlethread": false,
   "no-builtins": false,
   "no-default-libraries": false,
-  "eh-frame-header": false
+  "eh-frame-header": false,
+  "panic-strategy": "abort"
 }

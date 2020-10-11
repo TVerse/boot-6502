@@ -22,7 +22,6 @@ fn panic(_info: &PanicInfo) -> ! {
     }
 }
 
-// TODO figure out why you get one extra interrupt when this is restarted
 #[arduino_mega2560::entry]
 fn main() -> ! {
     let dp = arduino_mega2560::Peripherals::take().unwrap();
@@ -86,8 +85,9 @@ fn main() -> ! {
 
 fn execute(mut pins: Pins) -> Result<()> {
     ufmt::uwriteln!(&mut pins.serial, "Waiting for start...").void_unwrap();
-
-    pins.delay.delay_ms(2000u16); // TODO can get a signal somehow?
+    // TODO figure out why you get one extra interrupt when this is restarted
+    // TODO can get a signal somehow?
+    pins.delay.delay_ms(2000u16);
 
     let s = "Hello, World!";
 
