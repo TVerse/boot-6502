@@ -3,7 +3,7 @@
 [[package]]
 name = "arduino-mega2560"
 version = "0.1.0"
-source = "git+https://github.com/Rahix/avr-hal#99fdf4dfd46e6d4f1838a08f5a137cedb91f3600"
+source = "git+https://github.com/Rahix/avr-hal#bad92776522bbbedee45d276991b45fb81f253d8"
 dependencies = [
  "atmega2560-hal",
  "avr-hal-generic",
@@ -12,7 +12,7 @@ dependencies = [
 [[package]]
 name = "atmega2560-hal"
 version = "0.1.0"
-source = "git+https://github.com/Rahix/avr-hal#99fdf4dfd46e6d4f1838a08f5a137cedb91f3600"
+source = "git+https://github.com/Rahix/avr-hal#bad92776522bbbedee45d276991b45fb81f253d8"
 dependencies = [
  "avr-device",
  "avr-hal-generic",
@@ -44,7 +44,7 @@ dependencies = [
 [[package]]
 name = "avr-hal-generic"
 version = "0.1.0"
-source = "git+https://github.com/Rahix/avr-hal#99fdf4dfd46e6d4f1838a08f5a137cedb91f3600"
+source = "git+https://github.com/Rahix/avr-hal#bad92776522bbbedee45d276991b45fb81f253d8"
 dependencies = [
  "avr-device",
  "cfg-if",
@@ -161,9 +161,9 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "syn"
-version = "1.0.42"
+version = "1.0.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c51d92969d209b54a98397e1b91c8ae82d8c87a7bb87df0b29aa2ad81454228"
+checksum = "e03e57e4fcbfe7749842d53e24ccb9aa12b7252dbe5e91d2acad31834c8b8fdd"
 dependencies = [
  "proc-macro2",
  "quote",
