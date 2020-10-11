@@ -77,10 +77,12 @@ fn main() -> ! {
     );
 
     match execute(pins) {
-        Ok(_) => loop {
+        Ok(_) => {
             ufmt::uwriteln!(&mut serial, "Success!").void_unwrap();
-            delay.delay_ms(10000u16);
-        },
+            loop {
+                delay.delay_ms(10000u16);
+            }
+        }
         Err(e) => {
             ufmt::uwriteln!(&mut serial, "ERROR: {}", e).void_unwrap();
             panic!(e);

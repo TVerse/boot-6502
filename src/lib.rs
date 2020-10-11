@@ -96,14 +96,14 @@ impl<'a> Pins<'a> {
             let result = inputpins.receive_byte();
 
             match result {
-                0x01 => Err(RECEIVED_UNEXPECTED_BYTE_ERROR),
-                _ => {
+                0x01 => {
                     let pins = Self::from(inputpins);
 
                     ufmt::uwriteln!(pins.serial, "Done!").void_unwrap();
 
                     Ok(pins)
                 }
+                _ => Err(RECEIVED_UNEXPECTED_BYTE_ERROR),
             }
         }
     }
@@ -119,10 +119,12 @@ impl<'a> Pins<'a> {
             handshake_pins,
             data_pins,
             delay,
+            serial,
             ..
         } = self;
 
-        handshake_pins.with_write_handshake(delay, || data_pins.prepare_data_for_send(data));
+        handshake_pins
+            .with_write_handshake(delay, serial, || data_pins.prepare_data_for_send(data));
     }
 }
 
@@ -177,21 +179,22 @@ struct HandshakePins {
 }
 
 impl HandshakePins {
-    fn with_write_handshake<F: FnOnce()>(&mut self, delay: &mut Delay, f: F) {
+    fn with_write_handshake<F: FnOnce()>(
+        &mut self,
+        delay: &mut Delay,
+        serial: &mut Serial<Floating>,
+        f: F,
+    ) {
         f();
 
-        delay.delay_us(100u8); // TODO
-
         self.outgoing_handshake.set_low().void_unwrap();
-        delay.delay_us(5u8); // TODO race condition somewhere? Too fast for the 6502?
-
-        while self.incoming_handshake.is_high().void_unwrap() {}
+        delay.delay_us(2u8); // At least 1 6502 clock cycle @ 1MHz
 
         self.outgoing_handshake.set_high().void_unwrap();
-        delay.delay_us(5u8); // TODO race condition somewhere? Too fast for the 6502?
 
-        while self.incoming_handshake.is_low().void_unwrap() {}
-        delay.delay_us(10u8); // TODO same
+        ufmt::uwriteln!(serial, "Waiting for data_received from 6502...").void_unwrap();
+
+        while self.incoming_handshake.is_high().void_unwrap() {}
     }
 
     fn with_read_handshake<F: FnOnce() -> u8>(
@@ -200,18 +203,15 @@ impl HandshakePins {
         serial: &mut Serial<Floating>,
         f: F,
     ) -> u8 {
-        ufmt::uwriteln!(serial, "Waiting for write...").void_unwrap();
+        ufmt::uwriteln!(serial, "Waiting for data_ready from 6502...").void_unwrap();
         while self.incoming_handshake.is_high().void_unwrap() {}
-
-        delay.delay_us(200u8);
 
         let result = f();
         ufmt::uwriteln!(serial, "Received {}", result).void_unwrap();
 
         self.outgoing_handshake.set_low().void_unwrap();
 
-        ufmt::uwriteln!(serial, "Waiting for line reset...").void_unwrap();
-        while self.incoming_handshake.is_low().void_unwrap() {}
+        delay.delay_us(2u8); // At least 1 6502 clock cycle @ 1MHz
 
         self.outgoing_handshake.set_high().void_unwrap();
 

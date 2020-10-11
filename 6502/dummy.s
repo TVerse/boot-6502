@@ -37,32 +37,31 @@ reset:
   STZ DDRA
 
   LDA PCR
-  AND #%11111001
-  ORA #%00001001
+  AND #%11111000
+  ORA #%00001000
   STA PCR
   LDA #%10000010
   STA IER
-  LDA PORTA
 
 loop:
-  LDA #%10000010
-  STA IER
-  LDA PORTA
   .wait_for_done:
     WAI
     LDA transfer_state + TransferState.done
     BEQ .wait_for_done
-  STZ DDRA
-  LDA #$55 ; TODO should be #$01
+  
+  AT_ADDRESS_8BIT transfer_state + TransferState.length
+  AT_ADDRESS transfer_state + TransferState.data_pointer
+  JSR print_length_string_stack
+  LDA #$FF
+  STA DDRA
+  LDA #$01
   STA PORTA
   .wait_for_handshake:
     WAI
     LDA transfer_state + TransferState.data_taken_received
     BEQ .wait_for_handshake
-  AT_ADDRESS_8BIT transfer_state + TransferState.length
-  AT_ADDRESS transfer_state + TransferState.data_pointer
-  JSR print_length_string_stack
-  STZ transfer_state + TransferState.done
+  LDA #"R"
+  JSR print_char
   JMP loop
 
 waiting:
@@ -75,8 +74,7 @@ irq:
   BPL .buttons ; Not the VIA?
   AND #%00000010
   BEQ .buttons
-    LDA #"X"
-    JSR print_char
+; TODO check data_taken_received
     LDA transfer_state + TransferState.done
     BNE .ack
     LDA transfer_state + TransferState.in_progress
@@ -103,14 +101,13 @@ irq:
       JSR continue_transfer
       BRA .buttons
     .ack:
-      LDA #"A"
-      JSR print_char
       LDA transfer_state + TransferState.data_taken_received
-      BEQ .buttons ; TODO shouldn't get here?
+      BNE .buttons ; TODO shouldn't get here?
       .outgoing_handshake:
-        LDA #%00000010
+        LDA #"A"
+        JSR print_char
+        LDA #$FF ; TODO 0b00000010 not turning interrupt off?
         STA IFR
-        STA IER
         LDA #DEFAULT_DDRA
         STA DDRA
         INC transfer_state + TransferState.data_taken_received

@@ -39,7 +39,6 @@ reset_base:
   LDA $FF
   STA INITIALIZATION_DONE
 
-  LDA #%00000001
   ; Start 5ms clock, 5000 cycles @ 1MHz
   ; 2 cycles for starting the interrupt = 4998 wait
   LITERAL $1386
@@ -47,9 +46,6 @@ reset_base:
 
   ; Enable interrupts
   CLI
-
-  LDA #%00000001
-  STA PORTA
 
   ; Initialize LCD:
   ; 4-bit, 2 line, 5x8 characters, move right
@@ -60,8 +56,6 @@ reset_base:
 
   LITERAL initialized_base
   JSR print_null_terminated_string_stack
-
-  STZ PORTA
 
   LITERAL 100
   JSR delay
