@@ -68,21 +68,21 @@ irq:
     LDA transfer_state + TransferState.in_progress
     BNE .continue_transfer
     .start_transfer:
-      LDA #"S"
-      JSR print_char
-      STZ transfer_State + TransferState.command
-      STZ transfer_State + TransferState.has_length
-      STZ transfer_State + TransferState.length
-      STZ transfer_state + TransferDate.data_pointer
-      STZ transfer_state + TransferDate.data_pointer + 1
-      STZ transfer_State + TransferState.current_byte_index
+;      LDA #"S"
+;      JSR print_char
+      STZ transfer_state + TransferState.command
+      STZ transfer_state + TransferState.has_length
+      STZ transfer_state + TransferState.length
+      STZ transfer_state + TransferState.data_pointer
+      STZ transfer_state + TransferState.data_pointer + 1
+      STZ transfer_state + TransferState.current_byte_index
       INC transfer_state + TransferState.in_progress
       LDA PORTA
       STA transfer_state + TransferState.command
       BRA .buttons
     .continue_transfer:
-      LDA #"C"
-      JSR print_char
+;      LDA #"C"
+;      JSR print_char
       JSR continue_transfer
   .buttons:
     JSR read_buttons
@@ -99,13 +99,14 @@ continue_transfer:
     LDA transfer_state + TransferState.has_length
     BNE .has_length
     .receive_length:
-      LDA PORTA
-      STA transfer_state + TransferState.has_length
       LDA #<transferred_string
       STA transfer_state + TransferState.data_pointer
       LDA #>transferred_string
       STA transfer_state + TransferState.data_pointer + 1
-      BRA .done
+      INC transfer_state + TransferState.has_length
+      LDA PORTA
+      STA transfer_state + TransferState.length
+      BRA .return
     .has_length:
       PHY
       LDY transfer_state + TransferState.current_byte_index
@@ -117,18 +118,17 @@ continue_transfer:
       STA (N_IRQ),Y
       PLY
       INC transfer_state + TransferState.current_byte_index
-      LDA transfer_state + TransferState.current_byte_index
       LDA transfer_state + TransferState.length
       CMP transfer_state + TransferState.current_byte_index
       BNE .return
       BRA .done
   .done:
-    LDA #"D"
-    JSR print_char
+;    LDA #"D"
+;    JSR print_char
     INC transfer_state + TransferState.done
     STZ transfer_state + TransferState.in_progress
   .return:
-    JSR
+    RTS
   .unknown:
     LITERAL unknown_command_error
     JMP error
