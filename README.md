@@ -34,9 +34,10 @@ Lengths are nonzero, 0 is interpreted as 256.
 | Display string | 0xFF | LEN DATA | ACK | | 258 | 1 |
 | Write bytes | 0x01 | LEN ADDR DATA | ACK | 260 | 1 |
 | Read bytes | 0x02 | LEN ADDR | ACKDATA DATA| 4 | 257 |
-| Read register | 0x03 | REGISTER | ACKDATA VALUE | 2 | 2 |
-| JMP A | 0x04 | ADDR | ACK | 3 | 1 |
-| JSR A | 0x05 | ADDR | ACK | 3 | 1 |
+| Write register | 0x03 | REGISTER DATA | ACK | 2 | 2 |
+| Read register | 0x04 | REGISTER | ACKDATA VALUE | 2 | 2 |
+| JSR A | 0x04 | ADDR | ACK | 3 | 1 |
+| JMP A | 0x05 | ADDR | ACK | 3 | 1 |
 
 Q: ACK before or after return for JSR?
 

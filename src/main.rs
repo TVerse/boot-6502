@@ -89,8 +89,10 @@ fn execute(mut pins: Pins) -> Result<()> {
     // TODO can get a signal somehow?
     pins.delay.delay_ms(2000u16);
 
-    let s = "Hello, World!";
+    let s = "Hi!";
 
+    let pins = pins.execute(s.as_bytes())?;
+    let pins = pins.execute(s.as_bytes())?;
     let mut pins = pins.execute(s.as_bytes())?;
 
     ufmt::uwriteln!(&mut pins.serial, "Done!").void_unwrap();

@@ -10,6 +10,7 @@ has_length .byte 0
 length .byte 0
 data_pointer .word 0
 current_byte_index .byte 0
+data_taken_received .byte 0
   .endstruct
 
   .dsect
@@ -47,10 +48,20 @@ loop:
   WAI
   LDA transfer_state + TransferState.done
   BEQ loop
+  LDA #%00000000
+  STA DDRA
+  LDA #$01
+  STA PORTA
+  .wait_for_handshake:
+    WAI
+    LDA transfer_state + TransferState.data_taken_received
+    BEQ .wait_for_handshake
+  SEI
   AT_ADDRESS_8BIT transfer_state + TransferState.length
   AT_ADDRESS transfer_state + TransferState.data_pointer
   JSR print_length_string_stack
   STZ transfer_state + TransferState.done
+  CLI
   JMP loop
 
 waiting:
@@ -64,18 +75,21 @@ irq:
   AND #%00000010
   BEQ .buttons
     LDA transfer_state + TransferState.done
-    BNE .buttons ; TODO what if the other side is too fast? Just get stuck here then...
+    BNE .ack ; TODO what if the other side is too fast? Just get stuck here then...
     LDA transfer_state + TransferState.in_progress
     BNE .continue_transfer
     .start_transfer:
 ;      LDA #"S"
 ;      JSR print_char
+      STZ transfer_state + TransferState.done
+      STZ transfer_state + TransferState.in_progress
       STZ transfer_state + TransferState.command
       STZ transfer_state + TransferState.has_length
       STZ transfer_state + TransferState.length
       STZ transfer_state + TransferState.data_pointer
       STZ transfer_state + TransferState.data_pointer + 1
       STZ transfer_state + TransferState.current_byte_index
+      STZ transfer_state + TransferState.data_taken_received
       INC transfer_state + TransferState.in_progress
       LDA PORTA
       STA transfer_state + TransferState.command
@@ -84,6 +98,18 @@ irq:
 ;      LDA #"C"
 ;      JSR print_char
       JSR continue_transfer
+  .ack:
+    LDA transfer_state + TransferData.data_taken_received
+    BEQ .buttons ; TODO shouldn't get here?
+    .outgoing_handshake
+      LDA #"A"
+      JSR print_char
+      LDA #%00000010
+      STA IFR
+      LDA #DEFAULT_DDRA
+      STA DDRA
+      INC transfer_state + TransferState.data_taken_received
+      BRA .buttons
   .buttons:
     JSR read_buttons
   .done:

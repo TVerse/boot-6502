@@ -30,31 +30,7 @@ Commands:
 
 pub type Result<A> = core::result::Result<A, &'static str>;
 
-static TOO_LONG_ERROR: &'static str = "Length should be between 1 and 255";
-
-pub struct Length {
-    wrapped_length: u8,
-}
-
-impl Length {
-    pub fn new(l: usize) -> Result<Length> {
-        if l == 0 || l > 256 {
-            Err(TOO_LONG_ERROR)
-        } else {
-            Ok(Length {
-                wrapped_length: l as u8,
-            })
-        }
-    }
-
-    pub fn length(&self) -> usize {
-        if self.wrapped_length == 0 {
-            256
-        } else {
-            self.wrapped_length.into()
-        }
-    }
-}
+static TOO_LONG_ERROR: &str = "Length should be between 1 and 255";
 
 pub struct Pins<'a> {
     handshake_pins: HandshakePins,
@@ -113,32 +89,35 @@ impl<'a> Pins<'a> {
                 self.send_byte(*d);
             }
 
-            if false {
-                let mut inputpins = InputPins::from(self);
+            let mut inputpins = InputPins::from(self);
 
-                let _result = inputpins.receive_byte();
+            let result = inputpins.receive_byte();
 
-                let pins = Self::from(inputpins);
-
-                Ok(pins)
-            } else {
-                Ok(self)
+            if result != 0x01 {
+                panic!("Wrong result?")
             }
+
+            let pins = Self::from(inputpins);
+
+            Ok(pins)
         }
     }
 
     fn send_byte(&mut self, data: u8) {
         // Writing to serial here slows us down enough for this all to work?
-        ufmt::uwriteln!(self.serial, "test").void_unwrap();
+        ufmt::uwriteln!(self.serial, "send").void_unwrap();
+        // But after handshake it does not?
 
         // TODO verify handshake is correct
         // probably first handshake is wrong so second byte is read as first byte
+        let Self {
+            handshake_pins,
+            data_pins,
+            delay,
+            ..
+        } = self;
 
-        self.data_pins.prepare_data_for_send(data);
-
-        // But here it does not?
-
-        self.handshake_pins.do_write_handshake(&mut self.delay);
+        handshake_pins.with_write_handshake(delay, || data_pins.prepare_data_for_send(data));
     }
 }
 
@@ -162,19 +141,16 @@ struct InputPins<'a> {
 
 impl<'a> InputPins<'a> {
     fn receive_byte(&mut self) -> u8 {
-        // Writing to serial here slows us down enough for this all to work?
-        ufmt::uwriteln!(self.serial, "test").void_unwrap();
+        ufmt::uwriteln!(self.serial, "receive").void_unwrap();
 
-        // TODO verify handshake is correct
-        // probably first handshake is wrong so second byte is read as first byte
+        let Self {
+            handshake_pins,
+            data_pins,
+            delay,
+            ..
+        } = self;
 
-        let res = self.data_pins.read_data();
-
-        // But here it does not?
-
-        self.handshake_pins.do_read_handshake(&mut self.delay);
-
-        res
+        handshake_pins.with_read_handshake(delay, || data_pins.read_data())
     }
 }
 
@@ -195,7 +171,9 @@ struct HandshakePins {
 }
 
 impl HandshakePins {
-    fn do_write_handshake(&mut self, delay: &mut Delay) {
+    fn with_write_handshake<F: FnOnce()>(&mut self, delay: &mut Delay, f: F) {
+        f();
+
         delay.delay_us(100u8); // TODO
 
         self.outgoing_handshake.set_low().void_unwrap();
@@ -209,8 +187,18 @@ impl HandshakePins {
         delay.delay_us(10u8); // TODO same
     }
 
-    fn do_read_handshake(&mut self, _delay: &mut Delay) {
-        unimplemented!()
+    fn with_read_handshake<F: FnOnce() -> u8>(&mut self, _delay: &mut Delay, f: F) -> u8 {
+        while self.incoming_handshake.is_high().void_unwrap() {}
+
+        let result = f();
+
+        self.outgoing_handshake.set_low().void_unwrap();
+
+        while self.incoming_handshake.is_low().void_unwrap() {}
+
+        self.outgoing_handshake.set_high().void_unwrap();
+
+        result
     }
 }
 
