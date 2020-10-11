@@ -105,9 +105,9 @@ impl<'a> Pins<'a> {
         if data.len() > 256 {
             Err(TOO_LONG_ERROR)
         } else {
-            self.send_byte(data.len() as u8);
+            self.send_byte(0xFF);
 
-            self.delay.delay_us(100u8);
+            self.send_byte(data.len() as u8);
 
             for d in data.iter().take(data.len()) {
                 self.send_byte(*d);

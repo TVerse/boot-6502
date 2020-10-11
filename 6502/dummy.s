@@ -5,16 +5,20 @@
   .struct TransferState
 in_progress .byte 0
 done .byte 0
+command .byte 0
+has_length .byte 0
+length .byte 0
+data_pointer .word 0
 current_byte_index .byte 0
-result_pointer .word 0
-result_length .byte 0
   .endstruct
 
   .dsect
-  .org $0200
+  .org $3E00
 transfer_state: TransferState
-transfer_result: .blk 256
+transferred_string: .blk 256
   .dend
+
+COMMAND_DISPLAY_STRING = $FF
 
 reset:
   ; Turn on cursor
@@ -28,10 +32,6 @@ reset:
 
   STZ transfer_state + TransferState.done
   STZ transfer_state + TransferState.in_progress
-  LDA #<transfer_result
-  STA transfer_state + TransferState.result_pointer
-  LDA #>transfer_result
-  STA transfer_state + TransferState.result_pointer + 1
 
   STZ DDRA
 
@@ -47,8 +47,8 @@ loop:
   WAI
   LDA transfer_state + TransferState.done
   BEQ loop
-  AT_ADDRESS_8BIT transfer_state + TransferState.result_length
-  AT_ADDRESS transfer_state + TransferState.result_pointer
+  AT_ADDRESS_8BIT transfer_state + TransferState.length
+  AT_ADDRESS transfer_state + TransferState.data_pointer
   JSR print_length_string_stack
   STZ transfer_state + TransferState.done
   JMP loop
@@ -64,43 +64,77 @@ irq:
   AND #%00000010
   BEQ .buttons
     LDA transfer_state + TransferState.done
-    BNE .buttons ; TODO what if the other side is too fast?
+    BNE .buttons ; TODO what if the other side is too fast? Just get stuck here then...
     LDA transfer_state + TransferState.in_progress
     BNE .continue_transfer
     .start_transfer:
-;      LDA #"S"
-;      JSR print_char
+      LDA #"S"
+      JSR print_char
+      STZ transfer_State + TransferState.command
+      STZ transfer_State + TransferState.has_length
+      STZ transfer_State + TransferState.length
+      STZ transfer_state + TransferDate.data_pointer
+      STZ transfer_state + TransferDate.data_pointer + 1
+      STZ transfer_State + TransferState.current_byte_index
       INC transfer_state + TransferState.in_progress
       LDA PORTA
-      STA transfer_state + TransferState.result_length
-      STZ transfer_state + TransferState.current_byte_index
+      STA transfer_state + TransferState.command
       BRA .buttons
     .continue_transfer:
-;      LDA #"C"
-;      JSR print_char
+      LDA #"C"
+      JSR print_char
+      JSR continue_transfer
+  .buttons:
+    JSR read_buttons
+  .done:
+  PLA
+  RTI
+
+continue_transfer:
+  LDA #COMMAND_DISPLAY_STRING
+  CMP transfer_state + TransferState.command
+  BEQ .display_string
+  BRA .unknown
+  .display_string:
+    LDA transfer_state + TransferState.has_length
+    BNE .has_length
+    .receive_length:
+      LDA PORTA
+      STA transfer_state + TransferState.has_length
+      LDA #<transferred_string
+      STA transfer_state + TransferState.data_pointer
+      LDA #>transferred_string
+      STA transfer_state + TransferState.data_pointer + 1
+      BRA .done
+    .has_length:
       PHY
       LDY transfer_state + TransferState.current_byte_index
-      LDA transfer_state + TransferState.result_pointer
+      LDA transfer_state + TransferState.data_pointer
       STA N_IRQ
-      LDA transfer_state + TransferState.result_pointer + 1
+      LDA transfer_state + TransferState.data_pointer + 1
       STA N_IRQ + 1
       LDA PORTA
       STA (N_IRQ),Y
       PLY
       INC transfer_state + TransferState.current_byte_index
       LDA transfer_state + TransferState.current_byte_index
-      LDA transfer_state + TransferState.result_length
+      LDA transfer_state + TransferState.length
       CMP transfer_state + TransferState.current_byte_index
-      BNE .buttons
-;      LDA #"D"
-;      JSR print_char
-      INC transfer_state + TransferState.done
-      STZ transfer_state + TransferState.in_progress
-  .buttons:
-    JSR read_buttons
+      BNE .return
+      BRA .done
   .done:
-  PLA
-  RTI
+    LDA #"D"
+    JSR print_char
+    INC transfer_state + TransferState.done
+    STZ transfer_state + TransferState.in_progress
+  .return:
+    JSR
+  .unknown:
+    LITERAL unknown_command_error
+    JMP error
+
+
+unknown_command_error: .asciiz "Unknown command!"
 
   .org PROGRAM_NMI_VECTOR
   .word nmi
