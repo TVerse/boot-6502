@@ -8,6 +8,7 @@ done .byte 0
 command .byte 0
 has_length .byte 0
 length .byte 0
+has_data_pointer .word 0
 data_pointer .word 0
 current_byte_index .byte 0
 data_taken_received .byte 0
@@ -72,9 +73,9 @@ irq:
   BPL .buttons ; Not the VIA?
   AND #%00000010
   BEQ .buttons
-; TODO check data_taken_received
     LDA transfer_state + TransferState.done
     BNE .ack
+    ; TODO also check data_taken_received
     LDA transfer_state + TransferState.in_progress
     BNE .continue_transfer
     .start_transfer:

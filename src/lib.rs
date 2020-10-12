@@ -30,9 +30,72 @@ Commands:
 
 pub type Result<A> = core::result::Result<A, &'static str>;
 
-static TOO_LONG_ERROR: &str = "Length should be between 1 and 255";
+static TOO_LONG_ERROR: &str = "Length should be between 1 and 256";
 
 static RECEIVED_UNEXPECTED_BYTE_ERROR: &str = "Received unexpected byte";
+
+pub struct AdjustedLength(u8);
+
+impl AdjustedLength {
+    fn new(len: usize) -> Result<AdjustedLength> {
+        if 1 <= len && len <= 256 {
+            // Wrap 256 to 0
+            Ok(AdjustedLength(len as u8))
+        } else {
+            Err(TOO_LONG_ERROR)
+        }
+    }
+
+    fn get_real_length(&self) -> usize {
+        if self.0 == 0 {
+            256
+        } else {
+            self.0 as usize
+        }
+    }
+}
+
+pub struct LengthLimitedSlice<'a> {
+    data: &'a [u8],
+    data_length: AdjustedLength,
+}
+
+impl<'a> LengthLimitedSlice<'a> {
+    pub fn new(data: &'a [u8]) -> Result<Self> {
+        AdjustedLength::new(data.len()).map(move |send_length| Self {
+            data,
+            data_length: send_length,
+        })
+    }
+}
+
+pub struct MutableLengthLimitedSlice<'a> {
+    data: &'a mut [u8],
+    data_length: AdjustedLength,
+}
+
+impl<'a> MutableLengthLimitedSlice<'a> {
+    pub fn new(data: &'a mut [u8]) -> Result<Self> {
+        AdjustedLength::new(data.len()).map(move |send_length| Self {
+            data,
+            data_length: send_length,
+        })
+    }
+}
+
+pub enum Command<'a> {
+    DisplayString {
+        data: LengthLimitedSlice<'a>,
+    },
+    WriteData {
+        address: u16,
+        data: LengthLimitedSlice<'a>,
+    },
+    ReadData {
+        address: u16,
+        out_buffer: MutableLengthLimitedSlice<'a>,
+    },
+}
 
 pub struct Pins<'a> {
     handshake_pins: HandshakePins,
@@ -77,34 +140,77 @@ impl<'a> Pins<'a> {
         }
     }
 
-    pub fn execute(mut self, data: &[u8]) -> Result<Self> {
+    pub fn execute(self, command: Command) -> Result<Self> {
         ufmt::uwriteln!(self.serial, "Sending!").void_unwrap();
-
-        if data.len() > 256 {
-            Err(TOO_LONG_ERROR)
-        } else {
-            self.send_byte(0xFF);
-
-            self.send_byte(data.len() as u8);
-
-            for d in data.iter().take(data.len()) {
-                self.send_byte(*d);
+        match command {
+            Command::DisplayString { data: lls } => self.handle_display_string(lls),
+            Command::WriteData { address, data: lls } => self.handle_write_data(address, lls),
+            Command::ReadData { .. } => {
+                ufmt::uwrite!(self.serial, "ReadData not yet implemented").void_unwrap();
+                unimplemented!()
             }
+        }
+    }
 
-            let mut inputpins = InputPins::from(self);
+    fn handle_display_string(mut self, lls: LengthLimitedSlice) -> Result<Self> {
+        ufmt::uwrite!(self.serial, "Displaying string...").void_unwrap();
+        let LengthLimitedSlice { data, data_length } = lls;
+        self.send_byte(0xFF);
 
-            let result = inputpins.receive_byte();
+        // TODO could also grab length out of the slice here
+        self.send_byte(data_length.0);
 
-            match result {
-                0x01 => {
-                    let pins = Self::from(inputpins);
+        for d in data.iter() {
+            self.send_byte(*d);
+        }
 
-                    ufmt::uwriteln!(pins.serial, "Done!").void_unwrap();
+        let mut inputpins = InputPins::from(self);
 
-                    Ok(pins)
-                }
-                _ => Err(RECEIVED_UNEXPECTED_BYTE_ERROR),
+        let ack = inputpins.receive_byte();
+
+        match ack {
+            0x01 => {
+                let pins = Self::from(inputpins);
+
+                ufmt::uwriteln!(pins.serial, "Done!").void_unwrap();
+
+                Ok(pins)
             }
+            _ => Err(RECEIVED_UNEXPECTED_BYTE_ERROR),
+        }
+    }
+
+    fn handle_write_data(mut self, address: u16, lls: LengthLimitedSlice) -> Result<Self> {
+        ufmt::uwrite!(self.serial, "Writing data...").void_unwrap();
+        let LengthLimitedSlice { data, data_length } = lls;
+        self.send_byte(0xFF);
+
+        // TODO could also grab length out of the slice here
+        self.send_byte(data_length.0);
+
+        let address = address.to_le_bytes();
+
+        for b in address.iter() {
+            self.send_byte(*b);
+        }
+
+        for d in data.iter() {
+            self.send_byte(*d);
+        }
+
+        let mut inputpins = InputPins::from(self);
+
+        let ack = inputpins.receive_byte();
+
+        match ack {
+            0x01 => {
+                let pins = Self::from(inputpins);
+
+                ufmt::uwriteln!(pins.serial, "Done!").void_unwrap();
+
+                Ok(pins)
+            }
+            _ => Err(RECEIVED_UNEXPECTED_BYTE_ERROR),
         }
     }
 

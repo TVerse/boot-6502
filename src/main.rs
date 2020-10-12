@@ -91,8 +91,13 @@ fn main() -> ! {
 }
 
 fn execute(pins: Pins) -> Result<()> {
-    pins.execute("Hi! ".as_bytes())?
-        .execute("You ".as_bytes())?
-        .execute("good?".as_bytes())
+    let display_string_command = Command::DisplayString {
+        data: LengthLimitedSlice::new("Hi! ".as_bytes())?,
+    };
+    let write_data_command = Command::DisplayString {
+        data: LengthLimitedSlice::new("You ".as_bytes())?,
+    };
+    pins.execute(display_string_command)?
+        .execute(write_data_command)
         .map(|_pins| ())
 }
