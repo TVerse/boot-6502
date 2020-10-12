@@ -91,11 +91,8 @@ fn main() -> ! {
 }
 
 fn execute(pins: Pins) -> Result<()> {
-    let s = "Hi!";
-
-    pins.execute(s.as_bytes())?
-        .execute(s.as_bytes())?
-        .execute(s.as_bytes())?;
-
-    Ok(())
+    pins.execute("Hi! ".as_bytes())?
+        .execute("You ".as_bytes())?
+        .execute("good?".as_bytes())
+        .map(|_pins| ())
 }

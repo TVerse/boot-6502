@@ -60,8 +60,6 @@ loop:
     WAI
     LDA transfer_state + TransferState.data_taken_received
     BEQ .wait_for_handshake
-  LDA #"R"
-  JSR print_char
   JMP loop
 
 waiting:
@@ -80,8 +78,6 @@ irq:
     LDA transfer_state + TransferState.in_progress
     BNE .continue_transfer
     .start_transfer:
-      LDA #"S"
-      JSR print_char
       STZ transfer_state + TransferState.done
       STZ transfer_state + TransferState.in_progress
       STZ transfer_state + TransferState.command
@@ -96,21 +92,18 @@ irq:
       STA transfer_state + TransferState.command
       BRA .buttons
     .continue_transfer:
-      LDA #"C"
-      JSR print_char
       JSR continue_transfer
       BRA .buttons
     .ack:
       LDA transfer_state + TransferState.data_taken_received
       BNE .buttons ; TODO shouldn't get here?
       .outgoing_handshake:
-        LDA #"A"
-        JSR print_char
         LDA #$FF ; TODO 0b00000010 not turning interrupt off?
         STA IFR
         LDA #DEFAULT_DDRA
         STA DDRA
         INC transfer_state + TransferState.data_taken_received
+        STZ transfer_state + TransferState.done
         BRA .buttons
   .buttons:
     JSR read_buttons
@@ -151,8 +144,6 @@ continue_transfer:
       BNE .return
       BRA .done
   .done:
-    LDA #"D"
-    JSR print_char
     INC transfer_state + TransferState.done
     STZ transfer_state + TransferState.in_progress
   .return:
