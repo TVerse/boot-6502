@@ -1,5 +1,7 @@
   .include base.s
 
+DEBUG=1
+
   .org ROM_START_ADDR
 
 EXPECT_NEXT_ADDR_LOW = $01
