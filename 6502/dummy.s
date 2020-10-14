@@ -90,6 +90,7 @@ irq:
       JSR continue_transfer
       BRA .buttons
     .ack:
+      DEBUG_CHAR "A"
       LDA transfer_state + TransferState.data_taken_received
       BNE .buttons ; TODO shouldn't get here?
       .outgoing_handshake:
@@ -107,6 +108,7 @@ irq:
   RTI
 
 start_transfer:
+  DEBUG_CHAR "S"
   STZ transfer_state + TransferState.done
   STZ transfer_state + TransferState.in_progress
   STZ transfer_state + TransferState.command
@@ -153,12 +155,16 @@ continue_transfer:
   CMP #EXPECT_NEXT_DATA
   BEQ .data
   .addr_low:
+    DEBUG_CHAR "A"
+    DEBUG_CHAR "L"
     LDA PORTA
     STA transfer_state + TransferState.data_pointer
     LDA #EXPECT_NEXT_ADDR_HIGH
     STA transfer_state + TransferState.expect_next
     BRA .return
   .addr_high:
+    DEBUG_CHAR "A"
+    DEBUG_CHAR "H"
     LDA PORTA
     STA transfer_state + TransferState.data_pointer + 1
     LDA transfer_state + TransferState.command
@@ -166,6 +172,7 @@ continue_transfer:
     STA transfer_state + TransferState.expect_next
     BRA .return
   .length:
+    DEBUG_CHAR "L"
     LDA PORTA
     STA transfer_state + TransferState.length
     LDA transfer_state + TransferState.command
@@ -173,6 +180,7 @@ continue_transfer:
     STA transfer_state + TransferState.expect_next
     BRA .return
   .data:
+    DEBUG_CHAR "D"
     PHY
     LDY transfer_state + TransferState.current_byte_index
     LDA transfer_state + TransferState.data_pointer
@@ -188,6 +196,7 @@ continue_transfer:
     BNE .return
     BRA .done
   .done:
+    DEBUG_CHAR "X"
     INC transfer_state + TransferState.done
     STZ transfer_state + TransferState.in_progress
   .return:

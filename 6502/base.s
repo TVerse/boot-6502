@@ -3,6 +3,7 @@
   .org ROM_START_ADDR
   .include stack.s
   .include peripherals.s
+  .include debug.s
 
 reset_base:
   ; Disable and stop interrupts
