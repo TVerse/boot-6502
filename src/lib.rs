@@ -140,6 +140,7 @@ impl<'a> Pins<'a> {
         }
     }
 
+    // TODO pass signature byte? Handle this another way?
     pub fn execute(self, command: Command) -> Result<Self> {
         ufmt::uwriteln!(self.serial, "Sending!").void_unwrap();
         match command {
@@ -185,14 +186,14 @@ impl<'a> Pins<'a> {
         let LengthLimitedSlice { data, data_length } = lls;
         self.send_byte(0xFF);
 
-        // TODO could also grab length out of the slice here
-        self.send_byte(data_length.0);
-
         let address = address.to_le_bytes();
 
         for b in address.iter() {
             self.send_byte(*b);
         }
+
+        // TODO could also grab length out of the slice here
+        self.send_byte(data_length.0);
 
         for d in data.iter() {
             self.send_byte(*d);
@@ -215,12 +216,8 @@ impl<'a> Pins<'a> {
     }
 
     fn send_byte(&mut self, data: u8) {
-        // Writing to serial here slows us down enough for this all to work?
-        ufmt::uwriteln!(self.serial, "send").void_unwrap();
-        // But after handshake it does not?
+        ufmt::uwriteln!(self.serial, "Sending {}", data).void_unwrap();
 
-        // TODO verify handshake is correct
-        // probably first handshake is wrong so second byte is read as first byte
         let Self {
             handshake_pins,
             data_pins,

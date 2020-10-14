@@ -2,13 +2,17 @@
 
   .org ROM_START_ADDR
 
+EXPECT_NEXT_ADDR_LOW = $01
+EXPECT_NEXT_ADDR_HIGH = $02
+EXPECT_NEXT_LENGTH = $03
+EXPECT_NEXT_DATA = $04
+
   .struct TransferState
 in_progress .byte 0
 done .byte 0
 command .byte 0
-has_length .byte 0
+expect_next .byte 0
 length .byte 0
-has_data_pointer .word 0
 data_pointer .word 0
 current_byte_index .byte 0
 data_taken_received .byte 0
@@ -21,6 +25,7 @@ transferred_string: .blk 256
   .dend
 
 COMMAND_DISPLAY_STRING = $FF
+COMMAND_WRITE_DATA = $01
 
 reset:
   ; Turn on cursor
@@ -79,18 +84,7 @@ irq:
     LDA transfer_state + TransferState.in_progress
     BNE .continue_transfer
     .start_transfer:
-      STZ transfer_state + TransferState.done
-      STZ transfer_state + TransferState.in_progress
-      STZ transfer_state + TransferState.command
-      STZ transfer_state + TransferState.has_length
-      STZ transfer_state + TransferState.length
-      STZ transfer_state + TransferState.data_pointer
-      STZ transfer_state + TransferState.data_pointer + 1
-      STZ transfer_state + TransferState.current_byte_index
-      STZ transfer_state + TransferState.data_taken_received
-      INC transfer_state + TransferState.in_progress
-      LDA PORTA
-      STA transfer_state + TransferState.command
+      JSR start_transfer
       BRA .buttons
     .continue_transfer:
       JSR continue_transfer
@@ -112,46 +106,90 @@ irq:
   PLA
   RTI
 
-continue_transfer:
-  LDA #COMMAND_DISPLAY_STRING
-  CMP transfer_state + TransferState.command
+start_transfer:
+  STZ transfer_state + TransferState.done
+  STZ transfer_state + TransferState.in_progress
+  STZ transfer_state + TransferState.command
+  STZ transfer_state + TransferState.expect_next
+  STZ transfer_state + TransferState.length
+  STZ transfer_state + TransferState.data_pointer
+  STZ transfer_state + TransferState.data_pointer + 1
+  STZ transfer_state + TransferState.current_byte_index
+  STZ transfer_state + TransferState.data_taken_received
+  INC transfer_state + TransferState.in_progress
+  LDA PORTA
+  STA transfer_state + TransferState.command
+  CMP #COMMAND_DISPLAY_STRING
   BEQ .display_string
+  CMP #COMMAND_WRITE_DATA
+  BEQ .write_data
   BRA .unknown
   .display_string:
-    LDA transfer_state + TransferState.has_length
-    BNE .has_length
-    .receive_length:
-      LDA #<transferred_string
-      STA transfer_state + TransferState.data_pointer
-      LDA #>transferred_string
-      STA transfer_state + TransferState.data_pointer + 1
-      INC transfer_state + TransferState.has_length
+    LDA #<transferred_string
+    STA transfer_state + TransferState.data_pointer
+    LDA #>transferred_string
+    STA transfer_state + TransferState.data_pointer + 1
+    LDA #EXPECT_NEXT_LEN
+    STA transfer_state + TransferState.expect_next
+    BRA .return
+  .write_data:
+    LDA #EXPECT_NEXT_ADDR_LOW
+    STA transfer_state + TransferState.expect_next
+    BRA .return
+  .unknown:
+    LITERAL unknown_command_error
+    JMP error
+  .return:
+    RTS
+
+continue_transfer:
+  LDA transfer_state + TransferState.expect_next
+  CMP #EXPECT_NEXT_LENGTH
+  BEQ .length
+  CMP #EXPECT_NEXT_ADDR_LOW
+  BEQ .addr_low
+  CMP #EXPECT_NEXT_ADDR_HIGH
+  BEQ .addr_low
+  .addr_low:
+    LDA PORTA
+    STA transfer_state + TransferState.data_pointer
+    LDA #EXPECT_NEXT_ADDR_HIGH
+    STA transfer_state + TransferState.expect_next
+    BRA .return
+  .addr_high:
+    LDA PORTA
+    STA transfer_state + TransferState.data_pointer + 1
+    LDA transfer_state + TransferState.command
+    LDA #EXPECT_NEXT_LEN
+    STA transfer_state + TransferState.expect_next
+    BRA .return
+  .length:
       LDA PORTA
       STA transfer_state + TransferState.length
+      LDA transfer_state + TransferState.command
+      LDA #EXPECT_NEXT_DATA
+      STA transfer_state + TransferState.expect_next
       BRA .return
-    .has_length:
-      PHY
-      LDY transfer_state + TransferState.current_byte_index
-      LDA transfer_state + TransferState.data_pointer
-      STA N_IRQ
-      LDA transfer_state + TransferState.data_pointer + 1
-      STA N_IRQ + 1
-      LDA PORTA
-      STA (N_IRQ),Y
-      PLY
-      INC transfer_state + TransferState.current_byte_index
-      LDA transfer_state + TransferState.length
-      CMP transfer_state + TransferState.current_byte_index
-      BNE .return
-      BRA .done
+  .data:
+    PHY
+    LDY transfer_state + TransferState.current_byte_index
+    LDA transfer_state + TransferState.data_pointer
+    STA N_IRQ
+    LDA transfer_state + TransferState.data_pointer + 1
+    STA N_IRQ + 1
+    LDA PORTA
+    STA (N_IRQ), Y
+    PLY
+    INC transfer_state + TransferState.current_byte_index
+    LDA transfer_state.length
+    CMP transfer_state + TransferState.current_byte_index
+    BNE .return
+    BRA .done
   .done:
     INC transfer_state + TransferState.done
     STZ transfer_state + TransferState.in_progress
   .return:
     RTS
-  .unknown:
-    LITERAL unknown_command_error
-    JMP error
 
 
 unknown_command_error: .asciiz "Unknown command!"

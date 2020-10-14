@@ -94,8 +94,9 @@ fn execute(pins: Pins) -> Result<()> {
     let display_string_command = Command::DisplayString {
         data: LengthLimitedSlice::new("Hi! ".as_bytes())?,
     };
-    let write_data_command = Command::DisplayString {
+    let write_data_command = Command::WriteData {
         data: LengthLimitedSlice::new("You ".as_bytes())?,
+        address: 0x0400,
     };
     pins.execute(display_string_command)?
         .execute(write_data_command)
