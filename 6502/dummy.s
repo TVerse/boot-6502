@@ -8,9 +8,9 @@ EXPECT_NEXT_ADDR_LOW = $01
 EXPECT_NEXT_ADDR_HIGH = $02
 EXPECT_NEXT_LEN = $03
 EXPECT_NEXT_DATA = $04
+EXPECT_NEXT_DONE = $FF
 
   .struct TransferState
-in_progress .byte 0
 done .byte 0
 command .byte 0
 expect_next .byte 0
@@ -40,7 +40,7 @@ reset:
   ;JSR print_null_terminated_string_stack
 
   STZ transfer_state + TransferState.done
-  STZ transfer_state + TransferState.in_progress
+  STZ transfer_state + TransferState.expect_next
 
   STZ DDRA
 
@@ -57,6 +57,7 @@ loop:
     LDA transfer_state + TransferState.done
     BEQ .wait_for_done
 
+  DEBUG_CHAR "P"
   AT_ADDRESS_8BIT transfer_state + TransferState.length
   AT_ADDRESS transfer_state + TransferState.data_pointer
   JSR print_length_string_stack
@@ -83,7 +84,7 @@ irq:
     LDA transfer_state + TransferState.done
     BNE .ack
     ; TODO also check data_taken_received
-    LDA transfer_state + TransferState.in_progress
+    LDA transfer_state + TransferState.expect_next
     BNE .continue_transfer
     .start_transfer:
       JSR start_transfer
@@ -112,7 +113,6 @@ irq:
 start_transfer:
   DEBUG_CHAR "S"
   STZ transfer_state + TransferState.done
-  STZ transfer_state + TransferState.in_progress
   STZ transfer_state + TransferState.command
   STZ transfer_state + TransferState.expect_next
   STZ transfer_state + TransferState.length
@@ -120,7 +120,6 @@ start_transfer:
   STZ transfer_state + TransferState.data_pointer + 1
   STZ transfer_state + TransferState.current_byte_index
   STZ transfer_state + TransferState.data_taken_received
-  INC transfer_state + TransferState.in_progress
   LDA PORTA
   STA transfer_state + TransferState.command
   CMP #COMMAND_DISPLAY_STRING
@@ -200,7 +199,7 @@ continue_transfer:
   .done:
     DEBUG_CHAR "X"
     INC transfer_state + TransferState.done
-    STZ transfer_state + TransferState.in_progress
+    STZ transfer_state + TransferState.expect_next
   .return:
     RTS
 

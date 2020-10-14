@@ -306,6 +306,9 @@ impl HandshakePins {
         _serial: &mut Serial<Floating>,
         f: F,
     ) -> u8 {
+        // Need a certain delay here for handshakes to switch properly?
+        // At least 2ms? Is there an extra WAI somewhere?
+        delay.delay_ms(2u8);
         while self.incoming_handshake.is_high().void_unwrap() {}
 
         let result = f();

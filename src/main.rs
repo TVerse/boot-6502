@@ -92,8 +92,9 @@ fn main() -> ! {
 
 fn execute(pins: Pins) -> Result<()> {
     let write_data_command = Command::WriteData {
-        data: LengthLimitedSlice::new("Hi!".as_bytes())?,
-        //data: LengthLimitedSlice::new("Writing lots and lots and lots of data".as_bytes())?,
+        // TODO short data to 0x3333 works, long data does not
+        //        data: LengthLimitedSlice::new("Hi!".as_bytes())?,
+        data: LengthLimitedSlice::new("Writing lots and lots and lots of data".as_bytes())?,
         address: 0x3333,
     };
     pins.execute(write_data_command)?;
