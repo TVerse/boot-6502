@@ -172,6 +172,8 @@ error:
   ORA 1,X
   BEQ .loop
   .has_message:
+    LDA #%11000000 ; Jump to second row
+    JSR lcd_instruction
     JSR print_null_terminated_string_stack
   .loop:
     WAI

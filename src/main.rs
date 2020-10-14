@@ -91,14 +91,12 @@ fn main() -> ! {
 }
 
 fn execute(pins: Pins) -> Result<()> {
-    let display_string_command = Command::DisplayString {
-        data: LengthLimitedSlice::new("Hi! ".as_bytes())?,
-    };
     let write_data_command = Command::WriteData {
-        data: LengthLimitedSlice::new("You ".as_bytes())?,
-        address: 0x0400,
+        data: LengthLimitedSlice::new("Hi!".as_bytes())?,
+        //data: LengthLimitedSlice::new("Writing lots and lots and lots of data".as_bytes())?,
+        address: 0x3333,
     };
-    pins.execute(display_string_command)?
-        .execute(write_data_command)
-        .map(|_pins| ())
+    pins.execute(write_data_command)?;
+
+    Ok(())
 }

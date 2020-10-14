@@ -4,7 +4,7 @@
 
 EXPECT_NEXT_ADDR_LOW = $01
 EXPECT_NEXT_ADDR_HIGH = $02
-EXPECT_NEXT_LENGTH = $03
+EXPECT_NEXT_LEN = $03
 EXPECT_NEXT_DATA = $04
 
   .struct TransferState
@@ -54,7 +54,7 @@ loop:
     WAI
     LDA transfer_state + TransferState.done
     BEQ .wait_for_done
-  
+
   AT_ADDRESS_8BIT transfer_state + TransferState.length
   AT_ADDRESS transfer_state + TransferState.data_pointer
   JSR print_length_string_stack
@@ -144,12 +144,14 @@ start_transfer:
 
 continue_transfer:
   LDA transfer_state + TransferState.expect_next
-  CMP #EXPECT_NEXT_LENGTH
+  CMP #EXPECT_NEXT_LEN
   BEQ .length
   CMP #EXPECT_NEXT_ADDR_LOW
   BEQ .addr_low
   CMP #EXPECT_NEXT_ADDR_HIGH
-  BEQ .addr_low
+  BEQ .addr_high
+  CMP #EXPECT_NEXT_DATA
+  BEQ .data
   .addr_low:
     LDA PORTA
     STA transfer_state + TransferState.data_pointer
@@ -164,12 +166,12 @@ continue_transfer:
     STA transfer_state + TransferState.expect_next
     BRA .return
   .length:
-      LDA PORTA
-      STA transfer_state + TransferState.length
-      LDA transfer_state + TransferState.command
-      LDA #EXPECT_NEXT_DATA
-      STA transfer_state + TransferState.expect_next
-      BRA .return
+    LDA PORTA
+    STA transfer_state + TransferState.length
+    LDA transfer_state + TransferState.command
+    LDA #EXPECT_NEXT_DATA
+    STA transfer_state + TransferState.expect_next
+    BRA .return
   .data:
     PHY
     LDY transfer_state + TransferState.current_byte_index
@@ -181,7 +183,7 @@ continue_transfer:
     STA (N_IRQ), Y
     PLY
     INC transfer_state + TransferState.current_byte_index
-    LDA transfer_state.length
+    LDA transfer_state + TransferState.length
     CMP transfer_state + TransferState.current_byte_index
     BNE .return
     BRA .done

@@ -184,7 +184,7 @@ impl<'a> Pins<'a> {
     fn handle_write_data(mut self, address: u16, lls: LengthLimitedSlice) -> Result<Self> {
         ufmt::uwrite!(self.serial, "Writing data...").void_unwrap();
         let LengthLimitedSlice { data, data_length } = lls;
-        self.send_byte(0xFF);
+        self.send_byte(0x01);
 
         let address = address.to_le_bytes();
 
@@ -251,8 +251,6 @@ struct InputPins<'a> {
 
 impl<'a> InputPins<'a> {
     fn receive_byte(&mut self) -> u8 {
-        ufmt::uwriteln!(self.serial, "receive").void_unwrap();
-
         let Self {
             handshake_pins,
             data_pins,
@@ -261,7 +259,11 @@ impl<'a> InputPins<'a> {
             ..
         } = self;
 
-        handshake_pins.with_read_handshake(delay, serial, || data_pins.read_data())
+        let result = handshake_pins.with_read_handshake(delay, serial, || data_pins.read_data());
+
+        ufmt::uwriteln!(self.serial, "Received {}", result).void_unwrap();
+
+        result
     }
 }
 
@@ -285,7 +287,7 @@ impl HandshakePins {
     fn with_write_handshake<F: FnOnce()>(
         &mut self,
         delay: &mut Delay,
-        serial: &mut Serial<Floating>,
+        _serial: &mut Serial<Floating>,
         f: F,
     ) {
         f();
@@ -295,30 +297,24 @@ impl HandshakePins {
 
         self.outgoing_handshake.set_high().void_unwrap();
 
-        ufmt::uwriteln!(serial, "Waiting for data_received from 6502...").void_unwrap();
-
         while self.incoming_handshake.is_high().void_unwrap() {}
     }
 
     fn with_read_handshake<F: FnOnce() -> u8>(
         &mut self,
         delay: &mut Delay,
-        serial: &mut Serial<Floating>,
+        _serial: &mut Serial<Floating>,
         f: F,
     ) -> u8 {
-        ufmt::uwriteln!(serial, "Waiting for data_ready from 6502...").void_unwrap();
         while self.incoming_handshake.is_high().void_unwrap() {}
 
         let result = f();
-        ufmt::uwriteln!(serial, "Received {}", result).void_unwrap();
 
         self.outgoing_handshake.set_low().void_unwrap();
 
         delay.delay_us(2u8); // At least 1 6502 clock cycle @ 1MHz
 
         self.outgoing_handshake.set_high().void_unwrap();
-
-        ufmt::uwriteln!(serial, "Received!").void_unwrap();
 
         result
     }
