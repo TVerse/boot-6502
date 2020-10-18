@@ -160,6 +160,7 @@ continue_transfer:
     DEBUG_CHAR "L"
     LDA PORTA
     STA transfer_state + TransferState.data_pointer
+    DEBUG_A
     LDA #EXPECT_NEXT_ADDR_HIGH
     STA transfer_state + TransferState.expect_next
     BRA .return
@@ -168,6 +169,7 @@ continue_transfer:
     DEBUG_CHAR "H"
     LDA PORTA
     STA transfer_state + TransferState.data_pointer + 1
+    DEBUG_A
     LDA transfer_state + TransferState.command
     LDA #EXPECT_NEXT_LEN
     STA transfer_state + TransferState.expect_next
