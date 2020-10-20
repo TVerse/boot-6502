@@ -5,6 +5,7 @@ use arduino_mega2560::{Delay, Serial, DDR};
 use atmega2560_hal::port;
 use atmega2560_hal::port::mode::{Floating, Input, Output};
 use avr_hal_generic::void::ResultVoidExt;
+use ufmt::derive::uDebug;
 
 type IncomingHandshake = port::portb::PB0<Input<Floating>>;
 type OutgoingHandshake = port::portb::PB2<Output>;
@@ -34,6 +35,7 @@ static TOO_LONG_ERROR: &str = "Length should be between 1 and 256";
 
 static RECEIVED_UNEXPECTED_BYTE_ERROR: &str = "Received unexpected byte";
 
+#[derive(uDebug)]
 pub struct AdjustedLength(u8);
 
 impl AdjustedLength {
@@ -45,16 +47,9 @@ impl AdjustedLength {
             Err(TOO_LONG_ERROR)
         }
     }
-
-    fn get_real_length(&self) -> usize {
-        if self.0 == 0 {
-            256
-        } else {
-            self.0 as usize
-        }
-    }
 }
 
+#[derive(uDebug)]
 pub struct LengthLimitedSlice<'a> {
     data: &'a [u8],
     data_length: AdjustedLength,
@@ -69,6 +64,7 @@ impl<'a> LengthLimitedSlice<'a> {
     }
 }
 
+#[derive(uDebug)]
 pub struct MutableLengthLimitedSlice<'a> {
     data: &'a mut [u8],
     data_length: AdjustedLength,
@@ -83,6 +79,7 @@ impl<'a> MutableLengthLimitedSlice<'a> {
     }
 }
 
+#[derive(uDebug)]
 pub enum Command<'a> {
     DisplayString {
         data: LengthLimitedSlice<'a>,
@@ -101,7 +98,7 @@ pub struct Pins<'a> {
     handshake_pins: HandshakePins,
     data_pins: OutputDataPins<'a>,
     delay: Delay,
-    serial: &'a mut Serial<Floating>,
+    pub serial: &'a mut Serial<Floating>,
 }
 
 impl<'a> Pins<'a> {
@@ -141,19 +138,19 @@ impl<'a> Pins<'a> {
     }
 
     // TODO pass signature byte? Handle this another way?
-    pub fn execute(self, command: Command) -> Result<Self> {
+    pub fn execute(self, command: &mut Command) -> Result<Self> {
         ufmt::uwriteln!(self.serial, "Sending!").void_unwrap();
         match command {
-            Command::DisplayString { data: lls } => self.handle_display_string(lls),
-            Command::WriteData { address, data: lls } => self.handle_write_data(address, lls),
-            Command::ReadData { .. } => {
-                ufmt::uwrite!(self.serial, "ReadData not yet implemented").void_unwrap();
-                unimplemented!()
-            }
+            Command::DisplayString { data: lls } => self.handle_display_string(&lls),
+            Command::WriteData { address, data: lls } => self.handle_write_data(*address, &lls),
+            Command::ReadData {
+                address,
+                out_buffer,
+            } => self.handle_read_data(*address, out_buffer),
         }
     }
 
-    fn handle_display_string(mut self, lls: LengthLimitedSlice) -> Result<Self> {
+    fn handle_display_string(mut self, lls: &LengthLimitedSlice) -> Result<Self> {
         ufmt::uwrite!(self.serial, "Displaying string...").void_unwrap();
         let LengthLimitedSlice { data, data_length } = lls;
         self.send_byte(0xFF);
@@ -181,7 +178,7 @@ impl<'a> Pins<'a> {
         }
     }
 
-    fn handle_write_data(mut self, address: u16, lls: LengthLimitedSlice) -> Result<Self> {
+    fn handle_write_data(mut self, address: u16, lls: &LengthLimitedSlice) -> Result<Self> {
         ufmt::uwrite!(self.serial, "Writing data...").void_unwrap();
         let LengthLimitedSlice { data, data_length } = lls;
         self.send_byte(0x01);
@@ -208,6 +205,38 @@ impl<'a> Pins<'a> {
                 let pins = Self::from(inputpins);
 
                 ufmt::uwriteln!(pins.serial, "Done!").void_unwrap();
+
+                Ok(pins)
+            }
+            _ => Err(RECEIVED_UNEXPECTED_BYTE_ERROR),
+        }
+    }
+
+    fn handle_read_data(
+        mut self,
+        address: u16,
+        mlls: &mut MutableLengthLimitedSlice,
+    ) -> Result<Self> {
+        ufmt::uwrite!(self.serial, "Requesting data...").void_unwrap();
+        let MutableLengthLimitedSlice { data, data_length } = mlls;
+        self.send_byte(0x02);
+
+        let address = address.to_le_bytes();
+        for b in address.iter() {
+            self.send_byte(*b);
+        }
+
+        self.send_byte(data_length.0);
+        let mut inputpins = InputPins::from(self);
+        let ack = inputpins.receive_byte();
+
+        match ack {
+            0x02 => {
+                for d in data.iter_mut() {
+                    *d = inputpins.receive_byte();
+                }
+
+                let pins = Self::from(inputpins);
 
                 Ok(pins)
             }

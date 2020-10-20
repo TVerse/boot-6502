@@ -1,10 +1,10 @@
+cargo-features = ["strip"]
+
 [package]
 name = "boot-6502"
 version = "0.1.0"
 authors = ["Dragnmn <dragnmn@gmail.com>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 # panic-halt = "0.2.0"
@@ -16,9 +16,11 @@ ufmt = "0.1.0"
 [profile.dev]
 lto = true
 opt-level = "s"
+debug = true
 
 [profile.release]
 codegen-units = 1
-debug = true
+debug = false
 lto = true
 opt-level = "s"
+strip = "symbols"

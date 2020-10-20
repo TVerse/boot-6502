@@ -58,9 +58,9 @@ loop:
     BEQ .wait_for_done
 
   DEBUG_CHAR "P"
-  AT_ADDRESS_8BIT transfer_state + TransferState.length
-  AT_ADDRESS transfer_state + TransferState.data_pointer
-  JSR print_length_string_stack
+  ;AT_ADDRESS_8BIT transfer_state + TransferState.length
+  ;AT_ADDRESS transfer_state + TransferState.data_pointer
+  ;JSR print_length_string_stack
   LDA #$FF
   STA DDRA
   LDA #$01
@@ -156,20 +156,20 @@ continue_transfer:
   CMP #EXPECT_NEXT_DATA
   BEQ .data
   .addr_low:
-    DEBUG_CHAR "A"
-    DEBUG_CHAR "L"
+    ;DEBUG_CHAR "A"
+    ;DEBUG_CHAR "L"
     LDA PORTA
     STA transfer_state + TransferState.data_pointer
-    DEBUG_A
+    ;DEBUG_A
     LDA #EXPECT_NEXT_ADDR_HIGH
     STA transfer_state + TransferState.expect_next
     BRA .return
   .addr_high:
-    DEBUG_CHAR "A"
-    DEBUG_CHAR "H"
+    ;DEBUG_CHAR "A"
+    ;DEBUG_CHAR "H"
     LDA PORTA
     STA transfer_state + TransferState.data_pointer + 1
-    DEBUG_A
+    ;DEBUG_A
     LDA transfer_state + TransferState.command
     LDA #EXPECT_NEXT_LEN
     STA transfer_state + TransferState.expect_next
@@ -178,12 +178,13 @@ continue_transfer:
     DEBUG_CHAR "L"
     LDA PORTA
     STA transfer_state + TransferState.length
+    DEBUG_A
     LDA transfer_state + TransferState.command
     LDA #EXPECT_NEXT_DATA
     STA transfer_state + TransferState.expect_next
     BRA .return
   .data:
-    DEBUG_CHAR "D"
+    ;DEBUG_CHAR "D"
     PHY
     LDY transfer_state + TransferState.current_byte_index
     LDA transfer_state + TransferState.data_pointer
