@@ -7,7 +7,8 @@ DEBUG=1
 EXPECT_NEXT_ADDR_LOW = $01
 EXPECT_NEXT_ADDR_HIGH = $02
 EXPECT_NEXT_LEN = $03
-EXPECT_NEXT_DATA = $04
+EXPECT_NEXT_RECEIVE_DATA = $04
+EXPECT_NEXT_SEND_DATA = $05
 EXPECT_NEXT_DONE = $FF
 
   .struct TransferState
@@ -28,6 +29,12 @@ transferred_string: .blk 256
 
 COMMAND_DISPLAY_STRING = $FF
 COMMAND_WRITE_DATA = $01
+COMMAND_READ_DATA = $02
+
+ACK = $01
+ACKDATA = $02
+
+handshakes: .byte 0, ACK, ACK, ACKDATA
 
 reset:
   ; Turn on cursor
@@ -61,10 +68,6 @@ loop:
   ;AT_ADDRESS_8BIT transfer_state + TransferState.length
   ;AT_ADDRESS transfer_state + TransferState.data_pointer
   ;JSR print_length_string_stack
-  LDA #$FF
-  STA DDRA
-  LDA #$01
-  STA PORTA
   .wait_for_handshake:
     WAI
     LDA transfer_state + TransferState.data_taken_received
@@ -126,6 +129,8 @@ start_transfer:
   BEQ .display_string
   CMP #COMMAND_WRITE_DATA
   BEQ .write_data
+  CMP #COMMAND_READ_DATA
+  BEQ .read_data
   BRA .unknown
   .display_string:
     LDA #<transferred_string
@@ -135,7 +140,12 @@ start_transfer:
     LDA #EXPECT_NEXT_LEN
     STA transfer_state + TransferState.expect_next
     BRA .return
+  ; TODO merge
   .write_data:
+    LDA #EXPECT_NEXT_ADDR_LOW
+    STA transfer_state + TransferState.expect_next
+    BRA .return
+  .read_data:
     LDA #EXPECT_NEXT_ADDR_LOW
     STA transfer_state + TransferState.expect_next
     BRA .return
@@ -153,8 +163,10 @@ continue_transfer:
   BEQ .addr_low
   CMP #EXPECT_NEXT_ADDR_HIGH
   BEQ .addr_high
-  CMP #EXPECT_NEXT_DATA
-  BEQ .data
+  CMP #EXPECT_NEXT_RECEIVE_DATA
+  BEQ .receive_data
+  CMP #EXPECT_NEXT_SEND_DATA
+  BEQ .send_data
   .addr_low:
     ;DEBUG_CHAR "A"
     ;DEBUG_CHAR "L"
@@ -175,15 +187,22 @@ continue_transfer:
     STA transfer_state + TransferState.expect_next
     BRA .return
   .length:
-    DEBUG_CHAR "L"
+    ;DEBUG_CHAR "L"
     LDA PORTA
     STA transfer_state + TransferState.length
     DEBUG_A
     LDA transfer_state + TransferState.command
-    LDA #EXPECT_NEXT_DATA
-    STA transfer_state + TransferState.expect_next
-    BRA .return
-  .data:
+    CMP #COMMAND_READ_DATA
+    BEQ .send_data
+    .next_receive_data:
+      LDA #EXPECT_NEXT_RECEIVE_DATA
+      STA transfer_state + TransferState.expect_next
+      BRA .return
+    .next_send_data:
+      LDA #EXPECT_NEXT_SEND_DATA
+      STA transfer_state + TransferState.expect_next
+      BRA .return
+  .receive_data:
     ;DEBUG_CHAR "D"
     PHY
     LDY transfer_state + TransferState.current_byte_index
@@ -199,8 +218,18 @@ continue_transfer:
     CMP transfer_state + TransferState.current_byte_index
     BNE .return
     BRA .done
+  .send_data:
+    ; TODO
+    BRA .done
   .done:
     DEBUG_CHAR "X"
+    LDA #$FF
+    STA DDRA
+    PHX
+    LDX transfer_state + TransferState.command
+    LDA handshakes, X
+    PLX
+    STA PORTA
     INC transfer_state + TransferState.done
     STZ transfer_state + TransferState.expect_next
   .return:
