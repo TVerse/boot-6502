@@ -138,6 +138,7 @@ impl<'a> Pins<'a> {
     }
 
     // TODO pass signature byte? Handle this another way?
+    // TODO put entire ACK+read phase in InputPins for better delay handling when switching modes
     pub fn execute(self, command: &mut Command) -> Result<Self> {
         ufmt::uwriteln!(self.serial, "Sending!").void_unwrap();
         match command {
@@ -153,7 +154,7 @@ impl<'a> Pins<'a> {
     fn handle_display_string(mut self, lls: &LengthLimitedSlice) -> Result<Self> {
         ufmt::uwrite!(self.serial, "Displaying string...").void_unwrap();
         let LengthLimitedSlice { data, data_length } = lls;
-        self.send_byte(0xFF);
+        self.send_byte(0x00);
 
         // TODO could also grab length out of the slice here
         self.send_byte(data_length.0);

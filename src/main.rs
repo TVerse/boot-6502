@@ -94,7 +94,8 @@ fn execute(pins: Pins) -> Result<()> {
     let mut write_data_command = Command::WriteData {
         // TODO short data to 0x3333 works, long data does not
         //        data: LengthLimitedSlice::new("01234567".as_bytes())?,
-        data: LengthLimitedSlice::new("Writing lots and lots and lots of data".as_bytes())?,
+        // data: LengthLimitedSlice::new("Writing lots and lots and lots of data".as_bytes())?,
+        data: LengthLimitedSlice::new(&[0; 256])?,
         address: 0x1234,
     };
     let mut buf = [0; 256];
@@ -104,7 +105,15 @@ fn execute(pins: Pins) -> Result<()> {
     };
     // let pins = pins.execute(&mut read_data_command)?;
     // ufmt::uwriteln!(pins.serial, "Result: {:#?}", read_data_command).void_unwrap();
-    let _pins = pins.execute(&mut write_data_command)?;
+    //let _pins = pins
+    //    .execute(&mut write_data_command)?
+    //    .execute(&mut write_data_command)?;
+
+    let mut display_string = Command::DisplayString {
+        data: LengthLimitedSlice::new("Hi!".as_bytes())?,
+    };
+    pins.execute(&mut display_string)?
+        .execute(&mut display_string)?;
 
     Ok(())
 }

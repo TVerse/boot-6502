@@ -1,6 +1,6 @@
   .include base.s
 
-DEBUG=1
+;DEBUG=1
 
   .org ROM_START_ADDR
 
@@ -27,14 +27,14 @@ transfer_state: TransferState
 transferred_string: .blk 256
   .dend
 
-COMMAND_DISPLAY_STRING = $FF
+COMMAND_DISPLAY_STRING = $00
 COMMAND_WRITE_DATA = $01
 COMMAND_READ_DATA = $02
 
 ACK = $01
 ACKDATA = $02
 
-handshakes: .byte 0, ACK, ACK, ACKDATA
+handshakes: .byte ACK, ACK, ACKDATA
 
 reset:
   ; Turn on cursor
@@ -59,19 +59,7 @@ reset:
   STA IER
 
 loop:
-  .wait_for_done:
-    WAI
-    LDA transfer_state + TransferState.done
-    BEQ .wait_for_done
-
-  DEBUG_CHAR "P"
-  ;AT_ADDRESS_8BIT transfer_state + TransferState.length
-  ;AT_ADDRESS transfer_state + TransferState.data_pointer
-  ;JSR print_length_string_stack
-  .wait_for_handshake:
-    WAI
-    LDA transfer_state + TransferState.data_taken_received
-    BEQ .wait_for_handshake
+  WAI
   JMP loop
 
 waiting:
@@ -100,18 +88,17 @@ irq:
       LDA transfer_state + TransferState.data_taken_received
       BNE .buttons ; TODO shouldn't get here?
       .outgoing_handshake:
-        LDA #$FF ; TODO 0b00000010 not turning interrupt off?
+        LDA #$FF ; TODO %00000010 doesn't work?
         STA IFR
-        LDA #DEFAULT_DDRA
-        STA DDRA
+        STZ DDRA
         INC transfer_state + TransferState.data_taken_received
         STZ transfer_state + TransferState.done
         BRA .buttons
   .buttons:
     JSR read_buttons
   .done:
-  PLA
-  RTI
+    PLA
+    RTI
 
 start_transfer:
   DEBUG_CHAR "S"
@@ -168,29 +155,23 @@ continue_transfer:
   CMP #EXPECT_NEXT_SEND_DATA
   BEQ .send_data
   .addr_low:
-    ;DEBUG_CHAR "A"
-    ;DEBUG_CHAR "L"
+    DEBUG_CHAR "A"
     LDA PORTA
     STA transfer_state + TransferState.data_pointer
-    ;DEBUG_A
     LDA #EXPECT_NEXT_ADDR_HIGH
     STA transfer_state + TransferState.expect_next
-    BRA .return
+    JMP .return
   .addr_high:
-    ;DEBUG_CHAR "A"
-    ;DEBUG_CHAR "H"
     LDA PORTA
     STA transfer_state + TransferState.data_pointer + 1
-    ;DEBUG_A
     LDA transfer_state + TransferState.command
     LDA #EXPECT_NEXT_LEN
     STA transfer_state + TransferState.expect_next
-    BRA .return
+    JMP .return
   .length:
-    ;DEBUG_CHAR "L"
+    DEBUG_CHAR "L"
     LDA PORTA
     STA transfer_state + TransferState.length
-    DEBUG_A
     LDA transfer_state + TransferState.command
     CMP #COMMAND_READ_DATA
     BEQ .send_data
@@ -203,7 +184,6 @@ continue_transfer:
       STA transfer_state + TransferState.expect_next
       BRA .return
   .receive_data:
-    ;DEBUG_CHAR "D"
     PHY
     LDY transfer_state + TransferState.current_byte_index
     LDA transfer_state + TransferState.data_pointer
@@ -222,7 +202,6 @@ continue_transfer:
     ; TODO
     BRA .done
   .done:
-    DEBUG_CHAR "X"
     LDA #$FF
     STA DDRA
     PHX
@@ -232,6 +211,11 @@ continue_transfer:
     STA PORTA
     INC transfer_state + TransferState.done
     STZ transfer_state + TransferState.expect_next
+    LDA transfer_state + TransferState.command
+    BNE .return
+      AT_ADDRESS_8BIT transfer_state + TransferState.length
+      AT_ADDRESS transfer_state + TransferState.data_pointer
+      JSR print_length_string_stack
   .return:
     RTS
 

@@ -166,7 +166,7 @@ delay:
 error:
   SEI
   LDA #%00000001
-  JSR lcd_instruction
+  ;JSR lcd_instruction
   LITERAL error_message
   JSR print_null_terminated_string_stack
   LDA 0,X
