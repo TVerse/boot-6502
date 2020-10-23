@@ -109,11 +109,23 @@ fn execute(pins: Pins) -> Result<()> {
     //    .execute(&mut write_data_command)?
     //    .execute(&mut write_data_command)?;
 
-    let mut display_string = Command::DisplayString {
+    let mut display_string_1 = Command::DisplayString {
         data: LengthLimitedSlice::new("Hi!".as_bytes())?,
     };
-    pins.execute(&mut display_string)?
-        .execute(&mut display_string)?;
 
-    Ok(())
+    let mut display_string_2 = Command::DisplayString {
+        data: LengthLimitedSlice::new("Hi!".as_bytes())?,
+    };
+    // pins.execute(&mut display_string)?
+    //     .execute(&mut display_string)?;
+    // let (pins, r?) = display_string.execute(pins);
+
+    let display_string_1 = PinsState::new(|pins| pins.execute(&mut display_string_1));
+    let display_string_2 = PinsState::new(|pins| pins.execute(&mut display_string_2));
+
+    let display_string = display_string_1.flat_map(|_| display_string_2);
+
+    let (_, result) = display_string.run(pins);
+
+    result
 }
