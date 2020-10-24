@@ -1,7 +1,7 @@
 #![no_std]
 
+use arduino_mega2560::{DDR, Delay, Serial};
 use arduino_mega2560::prelude::*;
-use arduino_mega2560::{Delay, Serial, DDR};
 use atmega2560_hal::port;
 use atmega2560_hal::port::mode::{Floating, Input, Output};
 use avr_hal_generic::void::ResultVoidExt;
@@ -23,7 +23,6 @@ type P7<A> = port::porta::PA7<A>;
 Commands:
 * Write N bytes to address A
 * Read N bytes from address A
-* Read from register
 * JMP A
 * JSR A
 * Print string at address A? (can use jump for this)
@@ -31,9 +30,9 @@ Commands:
 
 pub type Result<A> = core::result::Result<A, &'static str>;
 
-static TOO_LONG_ERROR: &str = "Length should be between 1 and 256";
+const TOO_LONG_ERROR: &str = "Length should be between 1 and 256";
 
-static RECEIVED_UNEXPECTED_BYTE_ERROR: &str = "Received unexpected byte";
+const RECEIVED_UNEXPECTED_BYTE_ERROR: &str = "Received unexpected byte";
 
 #[derive(uDebug)]
 pub struct AdjustedLength(u8);
@@ -94,6 +93,63 @@ pub enum Command<'a> {
     },
 }
 
+impl<'a> Command<'a> {
+    const DISPLAY_STRING_SIGNATURE: u8 = 0x00;
+    const WRITE_DATA_SIGNATURE: u8 = 0x01;
+    const READ_DATA_SIGNATURE: u8 = 0x02;
+
+    const PLAIN_ACK: u8 = 0x01;
+    const DATA_FOLLOWING_ACK: u8 = 0x02;
+
+    fn signature_byte(&self) -> u8 {
+        match self {
+            Command::DisplayString { .. } => Command::DISPLAY_STRING_SIGNATURE,
+            Command::WriteData { .. } => Command::WRITE_DATA_SIGNATURE,
+            Command::ReadData { .. } => Command::READ_DATA_SIGNATURE,
+        }
+    }
+
+    fn ack_byte(&self) -> u8 {
+        match self {
+            Command::DisplayString { .. } => Command::PLAIN_ACK,
+            Command::WriteData { .. } => Command::PLAIN_ACK,
+            Command::ReadData { .. } => Command::DATA_FOLLOWING_ACK,
+        }
+    }
+
+    fn length(&self) -> Option<u8> {
+        match self {
+            Command::DisplayString { data, .. } => Some(data.data_length.0),
+            Command::WriteData { data, .. } => Some(data.data_length.0),
+            Command::ReadData { out_buffer, .. } => Some(out_buffer.data_length.0),
+        }
+    }
+
+    fn address(&self) -> Option<u16> {
+        match self {
+            Command::DisplayString { .. } => None,
+            Command::WriteData { address, .. } => Some(*address),
+            Command::ReadData { address, .. } => Some(*address),
+        }
+    }
+
+    fn sendable_data(&self) -> Option<&LengthLimitedSlice> {
+        match self {
+            Command::DisplayString { data, .. } => Some(data),
+            Command::WriteData { data, .. } => Some(data),
+            Command::ReadData { .. } => None,
+        }
+    }
+
+    fn receivable_data(&mut self) -> Option<&mut MutableLengthLimitedSlice<'a>> {
+        match self {
+            Command::DisplayString { .. } => None,
+            Command::WriteData { .. } => None,
+            Command::ReadData { out_buffer, .. } => Some(out_buffer)
+        }
+    }
+}
+
 pub struct Pins<'a> {
     handshake_pins: HandshakePins,
     data_pins: OutputDataPins<'a>,
@@ -137,111 +193,40 @@ impl<'a> Pins<'a> {
         }
     }
 
-    // TODO pass signature byte? Handle this another way?
-    // TODO put entire ACK+read phase in InputPins for better delay handling when switching modes
-    pub fn execute(self, command: &mut Command) -> Result<Self> {
+    pub fn execute(mut self, command: &mut Command) -> Result<Self> {
         ufmt::uwriteln!(self.serial, "Sending!").void_unwrap();
-        match command {
-            Command::DisplayString { data: lls } => self.handle_display_string(&lls),
-            Command::WriteData { address, data: lls } => self.handle_write_data(*address, &lls),
-            Command::ReadData {
-                address,
-                out_buffer,
-            } => self.handle_read_data(*address, out_buffer),
-        }
+        self.send_signature(command);
+        command.address().iter().for_each(|a| self.send_address(*a));
+        command.length().iter().for_each(|l| self.send_length(*l));
+        command.sendable_data().iter().for_each(|lls| self.send_data(*lls));
+
+        let input_pins = InputPins::from(self);
+
+        let input_pins = input_pins.execute(command)?;
+
+        Ok(Self::from(input_pins))
     }
 
-    fn handle_display_string(mut self, lls: &LengthLimitedSlice) -> Result<Self> {
-        ufmt::uwrite!(self.serial, "Displaying string...").void_unwrap();
-        let LengthLimitedSlice { data, data_length } = lls;
-        self.send_byte(0x00);
-
-        // TODO could also grab length out of the slice here
-        self.send_byte(data_length.0);
-
-        for d in data.iter() {
-            self.send_byte(*d);
-        }
-
-        let mut inputpins = InputPins::from(self);
-
-        let ack = inputpins.receive_byte();
-
-        match ack {
-            0x01 => {
-                let pins = Self::from(inputpins);
-
-                ufmt::uwriteln!(pins.serial, "Done!").void_unwrap();
-
-                Ok(pins)
-            }
-            _ => Err(RECEIVED_UNEXPECTED_BYTE_ERROR),
-        }
+    fn send_signature(&mut self, command: &Command) {
+        self.send_byte(command.signature_byte())
     }
 
-    fn handle_write_data(mut self, address: u16, lls: &LengthLimitedSlice) -> Result<Self> {
-        ufmt::uwrite!(self.serial, "Writing data...").void_unwrap();
-        let LengthLimitedSlice { data, data_length } = lls;
-        self.send_byte(0x01);
+    fn send_length(&mut self, length: u8) {
+        self.send_byte(length)
+    }
 
+    fn send_address(&mut self, address: u16) {
         let address = address.to_le_bytes();
 
         for b in address.iter() {
             self.send_byte(*b);
         }
-
-        // TODO could also grab length out of the slice here
-        self.send_byte(data_length.0);
-
-        for d in data.iter() {
-            self.send_byte(*d);
-        }
-
-        let mut inputpins = InputPins::from(self);
-
-        let ack = inputpins.receive_byte();
-
-        match ack {
-            0x01 => {
-                let pins = Self::from(inputpins);
-
-                ufmt::uwriteln!(pins.serial, "Done!").void_unwrap();
-
-                Ok(pins)
-            }
-            _ => Err(RECEIVED_UNEXPECTED_BYTE_ERROR),
-        }
     }
 
-    fn handle_read_data(
-        mut self,
-        address: u16,
-        mlls: &mut MutableLengthLimitedSlice,
-    ) -> Result<Self> {
-        ufmt::uwrite!(self.serial, "Requesting data...").void_unwrap();
-        let MutableLengthLimitedSlice { data, data_length } = mlls;
-        self.send_byte(0x02);
-
-        let address = address.to_le_bytes();
-        for b in address.iter() {
-            self.send_byte(*b);
-        }
-
-        self.send_byte(data_length.0);
-        let mut inputpins = InputPins::from(self);
-        let ack = inputpins.receive_byte();
-
-        match ack {
-            0x02 => {
-                for d in data.iter_mut() {
-                    *d = inputpins.receive_byte();
-                }
-
-                let pins = Self::from(inputpins);
-
-                Ok(pins)
-            }
-            _ => Err(RECEIVED_UNEXPECTED_BYTE_ERROR),
+    fn send_data(&mut self, lls: &LengthLimitedSlice) {
+        let LengthLimitedSlice { data, .. } = lls;
+        for d in data.iter() {
+            self.send_byte(*d);
         }
     }
 
@@ -280,6 +265,25 @@ struct InputPins<'a> {
 }
 
 impl<'a> InputPins<'a> {
+    fn execute(mut self, command: &mut Command) -> Result<Self> {
+        // Need a certain delay here for handshakes to switch properly?
+        // At least 2ms? Is there an extra WAI somewhere?
+        self.delay.delay_ms(2u8);
+        if self.receive_byte() != command.ack_byte() {
+            Err(RECEIVED_UNEXPECTED_BYTE_ERROR)
+        } else {
+            command.receivable_data().iter_mut().for_each(|mlls| self.receive_data(*mlls));
+            Ok(self)
+        }
+    }
+
+    fn receive_data(&mut self, mlls: &mut MutableLengthLimitedSlice) {
+        let MutableLengthLimitedSlice { data, .. } = mlls;
+        for d in data.iter_mut() {
+            *d = self.receive_byte();
+        }
+    }
+
     fn receive_byte(&mut self) -> u8 {
         let Self {
             handshake_pins,
@@ -336,9 +340,6 @@ impl HandshakePins {
         _serial: &mut Serial<Floating>,
         f: F,
     ) -> u8 {
-        // Need a certain delay here for handshakes to switch properly?
-        // At least 2ms? Is there an extra WAI somewhere?
-        delay.delay_ms(2u8);
         while self.incoming_handshake.is_high().void_unwrap() {}
 
         let result = f();

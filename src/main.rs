@@ -98,22 +98,22 @@ fn execute(pins: Pins) -> Result<()> {
         data: LengthLimitedSlice::new(&[0; 256])?,
         address: 0x1234,
     };
-    let mut buf = [0; 256];
-    let mut _read_data_command = Command::ReadData {
-        out_buffer: MutableLengthLimitedSlice::new(&mut buf)?,
-        address: 0x0000,
-    };
-    // let pins = pins.execute(&mut read_data_command)?;
-    // ufmt::uwriteln!(pins.serial, "Result: {:#?}", read_data_command).void_unwrap();
-    //let _pins = pins
-    //    .execute(&mut write_data_command)?
-    //    .execute(&mut write_data_command)?;
-
     let mut display_string = Command::DisplayString {
         data: LengthLimitedSlice::new("Hi!".as_bytes())?,
     };
-    pins.execute(&mut display_string)?
-        .execute(&mut display_string)?;
+    let mut buf = [0; 256];
+    let mut read_data_command = Command::ReadData {
+        out_buffer: MutableLengthLimitedSlice::new(&mut buf)?,
+        address: 0x0000,
+    };
+    let pins = pins
+        .execute(&mut display_string)?
+        .execute(&mut write_data_command)?
+        .execute(&mut display_string)?
+        .execute(&mut write_data_command)?
+        .execute(&mut read_data_command)?
+        .execute(&mut read_data_command)?;
+    ufmt::uwriteln!(pins.serial, "Result: {:#?}", read_data_command).void_unwrap();
 
     Ok(())
 }
