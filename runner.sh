@@ -26,4 +26,6 @@ printf "\n"
 printf "Attempting to flash ...\n"
 printf "\n"
 
-avrdude -qq -C/etc/avrdude.conf -patmega2560 -cwiring -P/dev/ttyACM0 -b115200 -D "-Uflash:w:$1"
+stty -F /dev/ttyACM0 -raw 57600
+
+avrdude -qq -C/etc/avrdude.conf -patmega2560 -cwiring -P/dev/ttyACM0 -b115200 -D "-Uflash:w:$1" && cat /dev/ttyACM0

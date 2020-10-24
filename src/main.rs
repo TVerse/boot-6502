@@ -79,6 +79,7 @@ fn main() -> ! {
     match execute(pins) {
         Ok(_) => {
             ufmt::uwriteln!(&mut serial, "Success!").void_unwrap();
+            ufmt::uwriteln!(&mut serial, "\n\u{04}").void_unwrap();
             loop {
                 delay.delay_ms(10000u16);
             }
@@ -101,19 +102,11 @@ fn execute(pins: Pins) -> Result<()> {
     let mut display_string = Command::DisplayString {
         data: LengthLimitedSlice::new("Hi!".as_bytes())?,
     };
-    let mut buf = [0; 256];
-    let mut read_data_command = Command::ReadData {
-        out_buffer: MutableLengthLimitedSlice::new(&mut buf)?,
-        address: 0x0000,
-    };
-    let pins = pins
+    let _pins = pins
         .execute(&mut display_string)?
         .execute(&mut write_data_command)?
         .execute(&mut display_string)?
-        .execute(&mut write_data_command)?
-        .execute(&mut read_data_command)?
-        .execute(&mut read_data_command)?;
-    ufmt::uwriteln!(pins.serial, "Result: {:#?}", read_data_command).void_unwrap();
+        .execute(&mut write_data_command)?;
 
     Ok(())
 }

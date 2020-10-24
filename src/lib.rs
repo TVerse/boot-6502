@@ -1,7 +1,7 @@
 #![no_std]
 
-use arduino_mega2560::{DDR, Delay, Serial};
 use arduino_mega2560::prelude::*;
+use arduino_mega2560::{Delay, Serial, DDR};
 use atmega2560_hal::port;
 use atmega2560_hal::port::mode::{Floating, Input, Output};
 use avr_hal_generic::void::ResultVoidExt;
@@ -145,7 +145,7 @@ impl<'a> Command<'a> {
         match self {
             Command::DisplayString { .. } => None,
             Command::WriteData { .. } => None,
-            Command::ReadData { out_buffer, .. } => Some(out_buffer)
+            Command::ReadData { out_buffer, .. } => Some(out_buffer),
         }
     }
 }
@@ -198,7 +198,10 @@ impl<'a> Pins<'a> {
         self.send_signature(command);
         command.address().iter().for_each(|a| self.send_address(*a));
         command.length().iter().for_each(|l| self.send_length(*l));
-        command.sendable_data().iter().for_each(|lls| self.send_data(*lls));
+        command
+            .sendable_data()
+            .iter()
+            .for_each(|lls| self.send_data(*lls));
 
         let input_pins = InputPins::from(self);
 
@@ -272,7 +275,10 @@ impl<'a> InputPins<'a> {
         if self.receive_byte() != command.ack_byte() {
             Err(RECEIVED_UNEXPECTED_BYTE_ERROR)
         } else {
-            command.receivable_data().iter_mut().for_each(|mlls| self.receive_data(*mlls));
+            command
+                .receivable_data()
+                .iter_mut()
+                .for_each(|mlls| self.receive_data(*mlls));
             Ok(self)
         }
     }
