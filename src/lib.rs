@@ -1,7 +1,5 @@
 #![no_std]
 
-use core::marker::PhantomData;
-
 use arduino_mega2560::prelude::*;
 use arduino_mega2560::{Delay, Serial, DDR};
 use atmega2560_hal::port;
@@ -96,65 +94,6 @@ pub enum Command<'a> {
     },
 }
 
-impl Command<'_> {
-    fn signature_byte(&self) -> u8 {
-        match self {
-            Command::DisplayString { .. } => 0x01,
-            Command::WriteData { .. } => 0x02,
-            Command::ReadData { .. } => 0x03,
-        }
-    }
-}
-
-pub struct PinsState<'a, F, A>
-where
-    F: FnOnce(Pins<'a>) -> (Pins<'a>, Result<A>),
-{
-    run: F,
-    _pd: PhantomData<Pins<'a>>,
-}
-
-impl<'a, F, A> PinsState<'a, F, A>
-where
-    F: FnOnce(Pins<'a>) -> (Pins<'a>, Result<A>),
-{
-    pub fn new(run: F) -> Self {
-        PinsState {
-            run,
-            _pd: PhantomData,
-        }
-    }
-
-    pub fn run(self, pins: Pins<'a>) -> (Pins<'a>, Result<A>) {
-        (self.run)(pins)
-    }
-
-    pub fn flat_map<B, G, H>(
-        self,
-        f: H,
-    ) -> PinsState<'a, impl FnOnce(Pins<'a>) -> (Pins<'a>, Result<B>), B>
-    where
-        G: FnOnce(Pins<'a>) -> (Pins<'a>, Result<B>),
-        H: FnOnce(A) -> PinsState<'a, G, B>,
-    {
-        PinsState {
-            run: {
-                |pins| {
-                    let (p, a) = (self.run)(pins);
-                    match a {
-                        Ok(a) => {
-                            let pins_state = f(a);
-                            (pins_state.run)(p)
-                        }
-                        Err(e) => (p, Err(e)),
-                    }
-                }
-            },
-            _pd: PhantomData,
-        }
-    }
-}
-
 pub struct Pins<'a> {
     handshake_pins: HandshakePins,
     data_pins: OutputDataPins<'a>,
@@ -200,7 +139,7 @@ impl<'a> Pins<'a> {
 
     // TODO pass signature byte? Handle this another way?
     // TODO put entire ACK+read phase in InputPins for better delay handling when switching modes
-    pub fn execute(self, command: &mut Command) -> (Self, Result<()>) {
+    pub fn execute(self, command: &mut Command) -> Result<Self> {
         ufmt::uwriteln!(self.serial, "Sending!").void_unwrap();
         match command {
             Command::DisplayString { data: lls } => self.handle_display_string(&lls),
@@ -212,7 +151,7 @@ impl<'a> Pins<'a> {
         }
     }
 
-    fn handle_display_string(mut self, lls: &LengthLimitedSlice) -> (Self, Result<()>) {
+    fn handle_display_string(mut self, lls: &LengthLimitedSlice) -> Result<Self> {
         ufmt::uwrite!(self.serial, "Displaying string...").void_unwrap();
         let LengthLimitedSlice { data, data_length } = lls;
         self.send_byte(0x00);
@@ -228,19 +167,19 @@ impl<'a> Pins<'a> {
 
         let ack = inputpins.receive_byte();
 
-        let pins = Self::from(inputpins);
-
         match ack {
             0x01 => {
+                let pins = Self::from(inputpins);
+
                 ufmt::uwriteln!(pins.serial, "Done!").void_unwrap();
 
-                (pins, Ok(()))
+                Ok(pins)
             }
-            _ => (pins, Err(RECEIVED_UNEXPECTED_BYTE_ERROR)),
+            _ => Err(RECEIVED_UNEXPECTED_BYTE_ERROR),
         }
     }
 
-    fn handle_write_data(mut self, address: u16, lls: &LengthLimitedSlice) -> (Self, Result<()>) {
+    fn handle_write_data(mut self, address: u16, lls: &LengthLimitedSlice) -> Result<Self> {
         ufmt::uwrite!(self.serial, "Writing data...").void_unwrap();
         let LengthLimitedSlice { data, data_length } = lls;
         self.send_byte(0x01);
@@ -262,14 +201,15 @@ impl<'a> Pins<'a> {
 
         let ack = inputpins.receive_byte();
 
-        let pins = Self::from(inputpins);
         match ack {
             0x01 => {
+                let pins = Self::from(inputpins);
+
                 ufmt::uwriteln!(pins.serial, "Done!").void_unwrap();
 
-                (pins, Ok(()))
+                Ok(pins)
             }
-            _ => (pins, Err(RECEIVED_UNEXPECTED_BYTE_ERROR)),
+            _ => Err(RECEIVED_UNEXPECTED_BYTE_ERROR),
         }
     }
 
@@ -277,7 +217,7 @@ impl<'a> Pins<'a> {
         mut self,
         address: u16,
         mlls: &mut MutableLengthLimitedSlice,
-    ) -> (Self, Result<()>) {
+    ) -> Result<Self> {
         ufmt::uwrite!(self.serial, "Requesting data...").void_unwrap();
         let MutableLengthLimitedSlice { data, data_length } = mlls;
         self.send_byte(0x02);
@@ -299,9 +239,9 @@ impl<'a> Pins<'a> {
 
                 let pins = Self::from(inputpins);
 
-                (pins, Ok(()))
+                Ok(pins)
             }
-            _ => (Self::from(inputpins), Err(RECEIVED_UNEXPECTED_BYTE_ERROR)),
+            _ => Err(RECEIVED_UNEXPECTED_BYTE_ERROR),
         }
     }
 
