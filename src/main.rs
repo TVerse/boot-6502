@@ -9,8 +9,8 @@ use arduino_mega2560::prelude::*;
 use atmega2560_hal::port;
 use avr_hal_generic::void::ResultVoidExt;
 
-use boot_6502::*;
 use boot_6502::serial;
+use boot_6502::*;
 
 static mut PANIC_LED: MaybeUninit<port::porta::PA1<port::mode::Output>> = MaybeUninit::uninit();
 
@@ -33,18 +33,13 @@ fn main() -> ! {
         dp.PORTK, dp.PORTL,
     );
 
-    unsafe {
-        PANIC_LED = MaybeUninit::new(pins.d23.into_output(&pins.ddr));
-    };
-
     let serial =
         arduino_mega2560::Serial::new(dp.USART0, pins.d0, pins.d1.into_output(&pins.ddr), 57600);
 
-    unsafe { serial::init(serial) };
-
-    serial_print!("test");
-
-    serial_print!("\n\u{04}");
+    unsafe {
+        PANIC_LED = MaybeUninit::new(pins.d23.into_output(&pins.ddr));
+        serial::init(serial);
+    };
 
     let mut reset = pins.d22.into_output(&pins.ddr);
 
@@ -69,27 +64,12 @@ fn main() -> ! {
 
     while ca2.is_low().void_unwrap() {}
 
-    let pins = Pins::new(
-        &pins.ddr,
-        ca2,
-        ca1,
-        pa0,
-        pa1,
-        pa2,
-        pa3,
-        pa4,
-        pa5,
-        pa6,
-        pa7,
-    );
+    let pins = Pins::new(&pins.ddr, ca2, ca1, pa0, pa1, pa2, pa3, pa4, pa5, pa6, pa7);
 
     match execute(pins) {
         Ok(_) => {
             serial_println!("Success!");
-            serial_println!("\n\u{04}");
-            loop {
-                delay.delay_ms(10000u16);
-            }
+            done();
         }
         Err(e) => {
             serial_println!("ERROR: {}", e);

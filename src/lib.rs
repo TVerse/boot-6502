@@ -36,6 +36,15 @@ const TOO_LONG_ERROR: &str = "Length should be between 1 and 256";
 
 const RECEIVED_UNEXPECTED_BYTE_ERROR: &str = "Received unexpected byte";
 
+pub fn done() -> ! {
+    let mut delay = arduino_mega2560::Delay::new();
+    serial_print!("\n\u{04}");
+
+    loop {
+        delay.delay_ms(1000u16);
+    }
+}
+
 #[derive(uDebug)]
 pub struct AdjustedLength(u8);
 
@@ -242,8 +251,7 @@ impl<'a> Pins<'a> {
             ..
         } = self;
 
-        handshake_pins
-            .with_write_handshake(delay, || data_pins.prepare_data_for_send(data));
+        handshake_pins.with_write_handshake(delay, || data_pins.prepare_data_for_send(data));
     }
 }
 
@@ -318,11 +326,7 @@ struct HandshakePins {
 }
 
 impl HandshakePins {
-    fn with_write_handshake<F: FnOnce()>(
-        &mut self,
-        delay: &mut Delay,
-        f: F,
-    ) {
+    fn with_write_handshake<F: FnOnce()>(&mut self, delay: &mut Delay, f: F) {
         f();
 
         self.outgoing_handshake.set_low().void_unwrap();
@@ -333,11 +337,7 @@ impl HandshakePins {
         while self.incoming_handshake.is_high().void_unwrap() {}
     }
 
-    fn with_read_handshake<F: FnOnce() -> u8>(
-        &mut self,
-        delay: &mut Delay,
-        f: F,
-    ) -> u8 {
+    fn with_read_handshake<F: FnOnce() -> u8>(&mut self, delay: &mut Delay, f: F) -> u8 {
         while self.incoming_handshake.is_high().void_unwrap() {}
 
         let result = f();
