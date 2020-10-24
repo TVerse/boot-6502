@@ -28,4 +28,6 @@ printf "\n"
 
 stty -F /dev/ttyACM0 -raw 57600
 
-avrdude -qq -C/etc/avrdude.conf -patmega2560 -cwiring -P/dev/ttyACM0 -b115200 -D "-Uflash:w:$1" && cat /dev/ttyACM0
+avrdude -qq -C/etc/avrdude.conf -patmega2560 -cwiring -P/dev/ttyACM0 -b115200 -D "-Uflash:w:$1"
+printf "Flashed!\n"
+cat /dev/ttyACM0

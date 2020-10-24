@@ -8,8 +8,6 @@ use arduino_mega2560::prelude::*;
 use atmega2560_hal::port;
 use avr_hal_generic::void::ResultVoidExt;
 
-use boot_6502::*;
-
 static mut PANIC_LED: MaybeUninit<port::porta::PA1<port::mode::Output>> = MaybeUninit::uninit();
 
 #[panic_handler]

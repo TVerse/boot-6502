@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![feature(custom_test_frameworks)]
 
 use core::mem::MaybeUninit;
 use core::panic::PanicInfo;
@@ -96,7 +97,7 @@ fn execute(pins: Pins) -> Result<()> {
         // TODO short data to 0x3333 works, long data does not
         //        data: LengthLimitedSlice::new("01234567".as_bytes())?,
         // data: LengthLimitedSlice::new("Writing lots and lots and lots of data".as_bytes())?,
-        data: LengthLimitedSlice::new(&[0; 256])?,
+        data: LengthLimitedSlice::new(&[0; 2])?,
         address: 0x1234,
     };
     let mut display_string = Command::DisplayString {
