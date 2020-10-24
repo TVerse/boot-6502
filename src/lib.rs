@@ -1,11 +1,13 @@
 #![no_std]
 
 use arduino_mega2560::prelude::*;
-use arduino_mega2560::{Delay, Serial, DDR};
+use arduino_mega2560::{Delay, DDR};
 use atmega2560_hal::port;
 use atmega2560_hal::port::mode::{Floating, Input, Output};
 use avr_hal_generic::void::ResultVoidExt;
 use ufmt::derive::uDebug;
+
+pub mod serial;
 
 type IncomingHandshake = port::portb::PB0<Input<Floating>>;
 type OutgoingHandshake = port::portb::PB2<Output>;
@@ -154,13 +156,11 @@ pub struct Pins<'a> {
     handshake_pins: HandshakePins,
     data_pins: OutputDataPins<'a>,
     delay: Delay,
-    pub serial: &'a mut Serial<Floating>,
 }
 
 impl<'a> Pins<'a> {
     pub fn new(
         ddr: &'a DDR,
-        serial: &'a mut Serial<Floating>,
         incoming_handshake: IncomingHandshake,
         outgoing_handshake: OutgoingHandshake,
         p0: P0<Output>,
@@ -189,12 +189,11 @@ impl<'a> Pins<'a> {
                 p7,
             },
             delay: Delay::new(),
-            serial,
         }
     }
 
     pub fn execute(mut self, command: &mut Command) -> Result<Self> {
-        ufmt::uwriteln!(self.serial, "Sending!").void_unwrap();
+        serial_println!("Sending!");
         self.send_signature(command);
         command.address().iter().for_each(|a| self.send_address(*a));
         command.length().iter().for_each(|l| self.send_length(*l));
@@ -234,18 +233,17 @@ impl<'a> Pins<'a> {
     }
 
     fn send_byte(&mut self, data: u8) {
-        ufmt::uwriteln!(self.serial, "Sending {}", data).void_unwrap();
+        serial_println!("Sending {}", data);
 
         let Self {
             handshake_pins,
             data_pins,
             delay,
-            serial,
             ..
         } = self;
 
         handshake_pins
-            .with_write_handshake(delay, serial, || data_pins.prepare_data_for_send(data));
+            .with_write_handshake(delay, || data_pins.prepare_data_for_send(data));
     }
 }
 
@@ -255,7 +253,6 @@ impl<'a> From<InputPins<'a>> for Pins<'a> {
             handshake_pins: ip.handshake_pins,
             data_pins: OutputDataPins::from(ip.data_pins),
             delay: ip.delay,
-            serial: ip.serial,
         }
     }
 }
@@ -264,7 +261,6 @@ struct InputPins<'a> {
     handshake_pins: HandshakePins,
     data_pins: InputDataPins<'a>,
     delay: Delay,
-    serial: &'a mut Serial<Floating>,
 }
 
 impl<'a> InputPins<'a> {
@@ -295,13 +291,12 @@ impl<'a> InputPins<'a> {
             handshake_pins,
             data_pins,
             delay,
-            serial,
             ..
         } = self;
 
-        let result = handshake_pins.with_read_handshake(delay, serial, || data_pins.read_data());
+        let result = handshake_pins.with_read_handshake(delay, || data_pins.read_data());
 
-        ufmt::uwriteln!(self.serial, "Received {}", result).void_unwrap();
+        serial_println!("Received {}", result);
 
         result
     }
@@ -313,7 +308,6 @@ impl<'a> From<Pins<'a>> for InputPins<'a> {
             handshake_pins: p.handshake_pins,
             data_pins: InputDataPins::from(p.data_pins),
             delay: p.delay,
-            serial: p.serial,
         }
     }
 }
@@ -327,7 +321,6 @@ impl HandshakePins {
     fn with_write_handshake<F: FnOnce()>(
         &mut self,
         delay: &mut Delay,
-        _serial: &mut Serial<Floating>,
         f: F,
     ) {
         f();
@@ -343,7 +336,6 @@ impl HandshakePins {
     fn with_read_handshake<F: FnOnce() -> u8>(
         &mut self,
         delay: &mut Delay,
-        _serial: &mut Serial<Floating>,
         f: F,
     ) -> u8 {
         while self.incoming_handshake.is_high().void_unwrap() {}
