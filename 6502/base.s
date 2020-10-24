@@ -3,6 +3,7 @@
   .org ROM_START_ADDR
   .include stack.s
   .include peripherals.s
+  .include debug.s
 
 reset_base:
   ; Disable and stop interrupts
@@ -165,13 +166,15 @@ delay:
 error:
   SEI
   LDA #%00000001
-  JSR lcd_instruction
+  ;JSR lcd_instruction
   LITERAL error_message
   JSR print_null_terminated_string_stack
   LDA 0,X
   ORA 1,X
   BEQ .loop
   .has_message:
+    LDA #%11000000 ; Jump to second row
+    JSR lcd_instruction
     JSR print_null_terminated_string_stack
   .loop:
     WAI

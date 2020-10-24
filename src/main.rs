@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![feature(custom_test_frameworks)]
 
 use core::mem::MaybeUninit;
 use core::panic::PanicInfo;
@@ -9,6 +10,7 @@ use atmega2560_hal::port;
 use avr_hal_generic::void::ResultVoidExt;
 
 use boot_6502::*;
+use boot_6502::serial;
 
 static mut PANIC_LED: MaybeUninit<port::porta::PA1<port::mode::Output>> = MaybeUninit::uninit();
 
@@ -24,7 +26,7 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[arduino_mega2560::entry]
 fn main() -> ! {
-    let dp = arduino_mega2560::Peripherals::take().unwrap();
+    let dp = arduino_mega2560::Peripherals::take().unwrap_or_else(|| panic!());
     let mut delay = arduino_mega2560::Delay::new();
     let pins = arduino_mega2560::Pins::new(
         dp.PORTA, dp.PORTB, dp.PORTC, dp.PORTD, dp.PORTE, dp.PORTF, dp.PORTG, dp.PORTH, dp.PORTJ,
@@ -35,8 +37,14 @@ fn main() -> ! {
         PANIC_LED = MaybeUninit::new(pins.d23.into_output(&pins.ddr));
     };
 
-    let mut serial =
+    let serial =
         arduino_mega2560::Serial::new(dp.USART0, pins.d0, pins.d1.into_output(&pins.ddr), 57600);
+
+    unsafe { serial::init(serial) };
+
+    serial_print!("test");
+
+    serial_print!("\n\u{04}");
 
     let mut reset = pins.d22.into_output(&pins.ddr);
 
@@ -57,13 +65,12 @@ fn main() -> ! {
     delay.delay_us(5u8);
     reset.set_high().void_unwrap();
 
-    ufmt::uwriteln!(&mut serial, "Waiting for start...").void_unwrap();
+    serial_println!("Waiting for start...");
 
     while ca2.is_low().void_unwrap() {}
 
     let pins = Pins::new(
         &pins.ddr,
-        &mut serial,
         ca2,
         ca1,
         pa0,
@@ -78,21 +85,35 @@ fn main() -> ! {
 
     match execute(pins) {
         Ok(_) => {
-            ufmt::uwriteln!(&mut serial, "Success!").void_unwrap();
+            serial_println!("Success!");
+            serial_println!("\n\u{04}");
             loop {
                 delay.delay_ms(10000u16);
             }
         }
         Err(e) => {
-            ufmt::uwriteln!(&mut serial, "ERROR: {}", e).void_unwrap();
+            serial_println!("ERROR: {}", e);
             panic!(e);
         }
     }
 }
 
 fn execute(pins: Pins) -> Result<()> {
-    pins.execute("Hi! ".as_bytes())?
-        .execute("You ".as_bytes())?
-        .execute("good?".as_bytes())
-        .map(|_pins| ())
+    let mut write_data_command = Command::WriteData {
+        // TODO short data to 0x3333 works, long data does not
+        //        data: LengthLimitedSlice::new("01234567".as_bytes())?,
+        // data: LengthLimitedSlice::new("Writing lots and lots and lots of data".as_bytes())?,
+        data: LengthLimitedSlice::new(&[0; 2])?,
+        address: 0x1234,
+    };
+    let mut display_string = Command::DisplayString {
+        data: LengthLimitedSlice::new("Hi!".as_bytes())?,
+    };
+    let _pins = pins
+        .execute(&mut display_string)?
+        .execute(&mut write_data_command)?
+        .execute(&mut display_string)?
+        .execute(&mut write_data_command)?;
+
+    Ok(())
 }
