@@ -17,6 +17,8 @@ use lib_io::*;
 
 static mut PANIC_LED: MaybeUninit<port::porta::PA1<port::mode::Output>> = MaybeUninit::uninit();
 
+static PROGRAM: &[u8] = include_bytes!("../6502/selfcontained_test.bin");
+
 #[panic_handler]
 fn panic(_panic_info: &PanicInfo) -> ! {
     let led = unsafe { &mut *PANIC_LED.as_mut_ptr() };
@@ -104,33 +106,33 @@ fn main() -> ! {
 
 fn run<WH: WithHandshake, S: SendByte, D: DelayMs<u8>>(
     pins: Pins<WH, S, D>,
-) -> Result<Pins<WH, impl SendByte, D>> {
+) -> Result<Pins<WH, S, D>> {
     let mut display_string = Command::DisplayString {
         data: LengthLimitedSlice::new("S... ".as_bytes())?,
     };
     let pins = pins.execute(&mut display_string)?;
 
-    // let mut program_buf = [0; 256];
-    // let mut pins = pins;
-    //
-    // for load_page in 0x00..0x3C {
-    //     for (i, b) in program_buf.iter_mut().enumerate() {
-    //         *b = PROGRAM[load_page + i];
-    //     }
-    //     let mut write_data = Command::WriteData {
-    //         address: (load_page as u16) + 0x0300,
-    //         data: LengthLimitedSlice::new(&program_buf)?,
-    //     };
-    //     pins = pins.execute(&mut write_data)?;
-    // }
-    //
-    // let mut set_ready = Command::WriteData {
-    //     address: 0x3FF2,
-    //     data: LengthLimitedSlice::new(&[1])?,
-    // };
-    //
-    // let pins = pins.execute(&mut set_ready)?;
-    //
+    let mut program_buf = [0; 256];
+    let mut pins = pins;
+
+    for load_page in 0x00..0x3C {
+        for (i, b) in program_buf.iter_mut().enumerate() {
+            *b = PROGRAM[load_page + i];
+        }
+        let mut write_data = Command::WriteData {
+            address: (load_page as u16) + 0x0300,
+            data: LengthLimitedSlice::new(&program_buf)?,
+        };
+        pins = pins.execute(&mut write_data)?;
+    }
+
+    let mut set_ready = Command::WriteData {
+        address: 0x3FF2,
+        data: LengthLimitedSlice::new(&[1])?,
+    };
+
+    let pins = pins.execute(&mut set_ready)?;
+
 
     let mut display_string = Command::DisplayString {
         data: LengthLimitedSlice::new(" Done!".as_bytes())?,

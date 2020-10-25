@@ -9,7 +9,7 @@ const TOO_LONG_ERROR: &str = "Length should be between 1 and 256";
 const RECEIVED_UNEXPECTED_BYTE_ERROR: &str = "Received unexpected byte";
 
 pub trait ReadByte {
-    type IntoSend: SendByte;
+    type IntoSend: SendByte<IntoRead=Self>;
 
     fn read(&self) -> u8;
 
@@ -17,7 +17,7 @@ pub trait ReadByte {
 }
 
 pub trait SendByte {
-    type IntoRead: ReadByte;
+    type IntoRead: ReadByte<IntoSend=Self>;
 
     fn send(&mut self, byte: u8);
 
@@ -173,7 +173,7 @@ where
     S: SendByte,
     D: DelayMs<u8>,
 {
-    pub fn execute(mut self, command: &mut Command) -> Result<Pins<WH, impl SendByte, D>> {
+    pub fn execute(mut self, command: &mut Command) -> Result<Pins<WH, S, D>> {
         self.send_signature(command);
         command.address().iter().for_each(|a| self.send_address(*a));
         command.length().iter().for_each(|l| self.send_length(*l));
