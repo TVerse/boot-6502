@@ -63,8 +63,6 @@ fn main() -> ! {
 
     serial_println!("Waiting for start...");
 
-    delay.delay_ms(2000u16);
-
     while ca2.is_low().void_unwrap() {}
 
     let pins = Pins::new(&pins.ddr, ca2, ca1, pa0, pa1, pa2, pa3, pa4, pa5, pa6, pa7);
@@ -83,9 +81,9 @@ fn main() -> ! {
 
 fn execute(pins: Pins) -> Result<Pins> {
     let mut display_string = Command::DisplayString {
-        data: LengthLimitedSlice::new("Starting.".as_bytes())?,
+        data: LengthLimitedSlice::new("S... ".as_bytes())?,
     };
-    //    let pins = pins.execute(&mut display_string)?;
+    let pins = pins.execute(&mut display_string)?;
     let mut buf = [1; 1];
     let mut read = Command::ReadData {
         address: 0x0300,
