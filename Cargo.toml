@@ -3,7 +3,7 @@ cargo-features = ["strip"]
 [package]
 name = "boot-6502"
 version = "0.1.0"
-authors = ["Dragnmn <dragnmn@gmail.com>"]
+authors = ["Tim Evers <29369097+TVerse@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
@@ -11,6 +11,7 @@ arduino-mega2560 = { git = "https://github.com/Rahix/avr-hal", rev = "0c6cf16" }
 atmega2560-hal = { git = "https://github.com/Rahix/avr-hal", rev = "0c6cf16" }
 avr-hal-generic = { git = "https://github.com/Rahix/avr-hal", rev = "0c6cf16" }
 ufmt = "0.1.0"
+lib-io = { path = "lib-io" }
 
 [profile.dev]
 lto = true

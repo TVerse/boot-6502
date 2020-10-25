@@ -10,7 +10,10 @@ use atmega2560_hal::port;
 use avr_hal_generic::void::ResultVoidExt;
 
 use boot_6502::serial;
-use boot_6502::*;
+use boot_6502::done;
+use boot_6502::serial_println;
+use lib_io::impl_avr::*;
+use lib_io::*;
 
 static mut PANIC_LED: MaybeUninit<port::porta::PA1<port::mode::Output>> = MaybeUninit::uninit();
 
@@ -66,9 +69,29 @@ fn main() -> ! {
 
     while ca2.is_low().void_unwrap() {}
 
-    let pins = Pins::new(&pins.ddr, ca2, ca1, pa0, pa1, pa2, pa3, pa4, pa5, pa6, pa7);
+    let with_handshake = Handshake {
+        incoming_handshake: ca2,
+        outgoing_handshake: ca1,
+        delay: arduino_mega2560::Delay::new(),
+    };
+    let write = Write {
+        ddr: &pins.ddr,
+        p0: pa0,
+        p1: pa1,
+        p2: pa2,
+        p3: pa3,
+        p4: pa4,
+        p5: pa5,
+        p6: pa6,
+        p7: pa7,
+    };
 
-    match execute(pins) {
+    let pins= Pins{
+        with_handshake,
+        send_byte: write,
+    };
+
+    match run(pins) {
         Ok(_) => {
             serial_println!("Success!");
             done();
@@ -84,7 +107,7 @@ static PROGRAM: &[u8] = include_bytes!("../6502/selfcontained_test.bin");
 
 static PROGRAM_WRONG_SIZE: &str = "Program is the wrong size";
 
-fn execute(pins: Pins) -> Result<Pins> {
+fn run<WH: WithHandshake, S: SendByte>(pins: Pins<WH, S>) -> Result<Pins<WH, impl SendByte>> {
     if PROGRAM.len() != 0x3F00 - 0x0300 {
         return Err(PROGRAM_WRONG_SIZE);
     };
@@ -93,26 +116,26 @@ fn execute(pins: Pins) -> Result<Pins> {
     };
     let pins = pins.execute(&mut display_string)?;
 
-    let mut program_buf = [0; 256];
-    let mut pins = pins;
-
-    for load_page in 0x00..0x3C {
-        for (i, b) in program_buf.iter_mut().enumerate() {
-            *b = PROGRAM[load_page + i];
-        }
-        let mut write_data = Command::WriteData {
-            address: (load_page as u16) + 0x0300,
-            data: LengthLimitedSlice::new(&program_buf)?,
-        };
-        pins = pins.execute(&mut write_data)?;
-    }
-
-    let mut set_ready = Command::WriteData {
-        address: 0x3FF2,
-        data: LengthLimitedSlice::new(&[1])?,
-    };
-
-    let pins = pins.execute(&mut set_ready)?;
+    // let mut program_buf = [0; 256];
+    // let mut pins = pins;
+    //
+    // for load_page in 0x00..0x3C {
+    //     for (i, b) in program_buf.iter_mut().enumerate() {
+    //         *b = PROGRAM[load_page + i];
+    //     }
+    //     let mut write_data = Command::WriteData {
+    //         address: (load_page as u16) + 0x0300,
+    //         data: LengthLimitedSlice::new(&program_buf)?,
+    //     };
+    //     pins = pins.execute(&mut write_data)?;
+    // }
+    //
+    // let mut set_ready = Command::WriteData {
+    //     address: 0x3FF2,
+    //     data: LengthLimitedSlice::new(&[1])?,
+    // };
+    //
+    // let pins = pins.execute(&mut set_ready)?;
 
     let mut display_string = Command::DisplayString {
         data: LengthLimitedSlice::new(" Done!".as_bytes())?,
