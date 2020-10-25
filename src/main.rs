@@ -15,7 +15,7 @@ use boot_6502::*;
 static mut PANIC_LED: MaybeUninit<port::porta::PA1<port::mode::Output>> = MaybeUninit::uninit();
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(_panic_info: &PanicInfo) -> ! {
     let led = unsafe { &mut *PANIC_LED.as_mut_ptr() };
     let mut delay = arduino_mega2560::Delay::new();
     serial_println!("Panic!");
@@ -63,6 +63,8 @@ fn main() -> ! {
 
     serial_println!("Waiting for start...");
 
+    delay.delay_ms(2000u16);
+
     while ca2.is_low().void_unwrap() {}
 
     let pins = Pins::new(&pins.ddr, ca2, ca1, pa0, pa1, pa2, pa3, pa4, pa5, pa6, pa7);
@@ -85,7 +87,7 @@ fn execute(pins: Pins) -> Result<Pins> {
     };
     let pins = pins.execute(&mut display_string)?;
 
-    let addresses = (0x200..0x3e00).step_by(0xED);
+    let addresses = (0x200u16..0x3d00).step_by(0xED);
     let mut data: [u8; 256] = [0; 256];
     for (i, d) in data.iter_mut().enumerate() {
         *d = i as u8;
@@ -93,8 +95,10 @@ fn execute(pins: Pins) -> Result<Pins> {
     let mut misses: usize = 0;
     let mut pins = pins;
     for address in addresses {
-        let sizes = (0x1..=0x256).step_by(23);
+        serial_println!("Address: {}", address);
+        let sizes = (1..257).step_by(23);
         for size in sizes {
+            serial_println!("Size: {}", size);
             let input_data = &data[0..size];
             let mut write_command = Command::WriteData {
                 data: LengthLimitedSlice::new(input_data)?,
@@ -106,9 +110,10 @@ fn execute(pins: Pins) -> Result<Pins> {
                 out_buffer: MutableLengthLimitedSlice::new(output_buf)?,
                 address,
             };
-            pins = pins
-                .execute(&mut write_command)?
-                .execute(&mut read_command)?;
+            serial_println!("Writing");
+            pins = pins.execute(&mut write_command)?;
+            serial_println!("Reading");
+            pins = pins.execute(&mut read_command)?;
             for (i, (written, read)) in input_data.iter().zip(output_buf.iter()).enumerate() {
                 if *written != *read {
                     serial_println!(
@@ -127,7 +132,7 @@ fn execute(pins: Pins) -> Result<Pins> {
     if misses != 0 {
         serial_println!("Had {} misses", misses);
     } else {
-        serial_println!("Success!");
+        serial_println!("No misses!");
     }
 
     let mut display_string = Command::DisplayString {

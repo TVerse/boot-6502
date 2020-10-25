@@ -1,9 +1,9 @@
   .include base.s
-  .include comms.s
 
 ;DEBUG=1
 
   .org ROM_START_ADDR
+  .include comms.s
 
 reset:
   ; Turn on cursor

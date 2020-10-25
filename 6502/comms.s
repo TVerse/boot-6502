@@ -3,9 +3,9 @@ EXPECT_NEXT_ADDR_LOW = $01
 EXPECT_NEXT_ADDR_HIGH = $02
 EXPECT_NEXT_LEN = $03
 EXPECT_NEXT_DATA = $04
-SEND_NEXT_ACK = $05
-SEND_NEXT_DATA = $06
-NEXT_DONE = $FF
+SEND_NEXT_DATA = $05
+DATA_SENT = $06
+ACK_SENT = $FF
 
   .struct TransferState
 done .byte 0
@@ -46,12 +46,12 @@ dispatch:
   BEQ .next_len
   CMP #EXPECT_NEXT_DATA
   BEQ .next_get_data
-  CMP #SEND_NEXT_ACK
-  BEQ .next_ack
+  CMP #ACK_SENT
+  BEQ .next_after_ack
   CMP #SEND_NEXT_DATA
   BEQ .next_send_data
-  CMP #NEXT_DONE
-  BEQ .next_done
+  CMP #DATA_SENT
+  BEQ .next_data_sent
     DEBUG_CHAR "E"
   .error:
     JMP .error
@@ -65,23 +65,20 @@ dispatch:
     JMP receive_len
   .next_get_data:
     JMP receive_data
-  .next_ack:
-    JSR set_output
-    JMP send_ack
+  .next_after_ack:
+    JMP after_ack
   .next_send_data:
     JMP send_data
-  .next_done:
-    JSR set_input
+  .next_data_sent:
     JMP done
 
 set_input:
   LDA #$FF ; Why does #%00000010 not work?
   STA IFR ; TODO why do I need to turn interrupt off manually? Going to STA PORTA later
-  STZ PORTA
+  STZ DDRA
   RTS
 
 init:
-  STZ DDRA
   LDA PCR
   AND #%11111001
   ORA #%00001000
@@ -90,6 +87,8 @@ init:
   STA IER
   STZ transfer_state + TransferState.command
   STZ transfer_state + TransferState.done
+  STZ transfer_state + TransferState.next
+  STZ transfer_state + TransferState.current_byte_index
   RTS
 
 receive_command:
@@ -132,7 +131,9 @@ receive_addr_high:
   RTS
 
 receive_len:
+  DEBUG_CHAR "L"
   LDA PORTA
+  DEBUG_A
   STA transfer_state + TransferState.length
   LDA transfer_state + TransferState.command
   CMP #COMMAND_READ_DATA
@@ -142,11 +143,10 @@ receive_len:
     STA transfer_state + TransferState.next
     RTS
   .next_ack:
-    LDA #SEND_ACK
-    STA transfer_state + TransferState.next
-    RTS
+    JMP send_ack
 
 receive_data:
+  DEBUG_CHAR "D"
   PHY
   LDY transfer_state + TransferState.current_byte_index
   LDA transfer_state + TransferState.data_pointer
@@ -163,9 +163,13 @@ receive_data:
   .return:
     RTS
   .next_ack:
-    LDA #SEND_ACK
-    STA transfer_state + TransferState.next
-    RTS
+    LDA transfer_state + TransferState.command
+    BNE .ack
+      AT_ADDRESS_8BIT transfer_state + TransferState.length
+      AT_ADDRESS transfer_state + TransferState.data_pointer
+      JSR print_length_string_stack
+    .ack:
+      JMP send_ack
 
 set_output:
   LDA #$FF
@@ -173,22 +177,15 @@ set_output:
   RTS
 
 send_ack:
+  JSR set_output
   PHX
   LDX transfer_state + TransferState.command
   LDA handshakes, X
   PLX
   STA PORTA
-  TXA
-  CMP #COMMAND_READ_DATA
-  BEQ .next_data
-  .done:
-    LDA #NEXT_DONE
-    STA transfer_state + TransferState.next
-    RTS
-  .next_data:
-    LDA #SEND_NEXT_DATA
-    STA transfer_state + TransferState.next
-    RTS
+  LDA #ACK_SENT
+  STA transfer_state + TransferState.next
+  RTS
 
 send_data:
   PHY
@@ -203,15 +200,26 @@ send_data:
   INC transfer_state + TransferState.current_byte_index
   LDA transfer_state + TransferState.length
   CMP transfer_state + TransferState.current_byte_index
-  BEQ .next_ack
+  BEQ .next_done
   .return:
     RTS
-  .next_ack:
-    LDA #NEXT_DONE
+  .next_done:
+    LDA #DATA_SENT
+    STA transfer_state + TransferState.next
+    RTS
+
+after_ack:
+  LDA transfer_state + TransferState.command
+  CMP #COMMAND_READ_DATA
+  BEQ .read_data
+    JMP done
+  .read_data:
+    LDA #SEND_NEXT_DATA
     STA transfer_state + TransferState.next
     RTS
 
 done:
   INC transfer_state + TransferState.done
   STZ transfer_state + TransferState.next
-  RTS
+  STZ transfer_state + TransferState.current_byte_index
+  JMP set_input

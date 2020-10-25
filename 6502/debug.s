@@ -34,6 +34,8 @@ byte_in_a_to_hex:
 
   .macro DEBUG_A
     .ifdef DEBUG
+      PHP
       JSR byte_in_a_to_hex
+      PLP
     .endif
   .endmacro

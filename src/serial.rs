@@ -19,7 +19,7 @@ macro_rules! serial_print {
     ($($arg:tt)*) => {
         match unsafe { &mut $crate::serial::SERIAL } {
             Some(serial) => ufmt::uwrite!(serial, $($arg)*).void_unwrap(),
-            None => panic!()
+            None => panic!(),
         };
     };
 }
@@ -30,7 +30,7 @@ macro_rules! serial_println {
     ($($arg:tt)*) => {
         match unsafe { &mut $crate::serial::SERIAL } {
             Some(serial) => ufmt::uwriteln!(serial, $($arg)*).void_unwrap(),
-            None => panic!()
+            None => panic!(),
         };
     };
 }
