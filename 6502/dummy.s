@@ -27,9 +27,3 @@ irq:
 str:
   .asciiz "JSR"
 
-  .org PROGRAM_NMI_VECTOR
-  .word nmi
-  .org PROGRAM_RESET_VECTOR
-  .word reset
-  .org PROGRAM_IRQ_VECTOR
-  .word irq

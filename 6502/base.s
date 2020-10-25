@@ -104,8 +104,7 @@ reset_base:
   STA program_reset + 1
 
   ; Program not loaded
-  LDA #$FF
-  STA program_load_done
+  STZ program_load_done
 
   ; Don't send interrupt to program yet
   LDA $FF
@@ -140,10 +139,10 @@ reset_base:
     LDA program_load_done
     BEQ .wait_for_program_loaded
   
-  JMP (PROGRAM_RESET_VECTOR)
+  JMP (program_reset)
   
 nmi_base:
-  JMP (PROGRAM_NMI_VECTOR)
+  JMP (program_nmi)
 irq_base:
   PHA
   LDA IFR
@@ -165,14 +164,14 @@ irq_base:
     BNE .no_overflow
     INC five_millisecond_counter_addr + 1
   .no_overflow:
-    BRA program_irq
+    BRA .program_irq
   .comms:
     JSR dispatch
   .program_irq:
     PLA
     BIT initialization_done
     BNE .not_done
-    JMP (PROGRAM_IRQ_VECTOR)
+    JMP (program_irq)
     .not_done:
       RTI
 

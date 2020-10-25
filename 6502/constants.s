@@ -25,6 +25,17 @@ RS = %00000001
 DEFAULT_DDRA = %00000000
 DEFAULT_DDRB = %01111111
 
+  .struct TransferState
+done .byte 0
+command .byte 0
+next .byte 0
+length .byte 0
+jmp .byte 0
+data_pointer .word 0
+current_byte_index .byte 0
+data_taken_received .byte 0
+  .endstruct
+
   .dsect
   .org $3EFA
 program_nmi: .word 0
@@ -37,7 +48,7 @@ program_irq: .word 0
 transfer_state: TransferState
 transferred_string: .blk 128
 
-  .org 3FF0
+  .org $3FF0
 five_millisecond_counter_addr: .word 0
 ; 8 bit, positive or zero if done, negative if not. To be set to zero by user. Used in base irq routine, functions as user-only cli.
 initialization_done: .byte 0

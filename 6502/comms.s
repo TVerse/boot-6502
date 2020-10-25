@@ -7,17 +7,6 @@ SEND_NEXT_DATA = $05
 DATA_SENT = $06
 ACK_SENT = $FF
 
-  .struct TransferState
-done .byte 0
-command .byte 0
-next .byte 0
-length .byte 0
-jmp .byte 0
-data_pointer .word 0
-current_byte_index .byte 0
-data_taken_received .byte 0
-  .endstruct
-
 ; IDEA: encode sequence of operation for easier branching
 COMMAND_DISPLAY_STRING = $00
 COMMAND_WRITE_DATA = $01
