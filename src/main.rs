@@ -41,6 +41,7 @@ fn main() -> ! {
         PANIC_LED = MaybeUninit::new(pins.d23.into_output(&pins.ddr));
         serial::init(serial);
     };
+    serial_println!("PROGRAM len: {}", PROGRAM.len());
 
     let mut reset = pins.d22.into_output(&pins.ddr);
 
@@ -85,7 +86,7 @@ static PROGRAM_WRONG_SIZE: &str = "Program is the wrong size";
 
 fn execute(pins: Pins) -> Result<Pins> {
     if PROGRAM.len() != 0x3F00 - 0x0300 {
-        return Err(PROGRAM_WRONG_SIZE)
+        return Err(PROGRAM_WRONG_SIZE);
     };
     let mut display_string = Command::DisplayString {
         data: LengthLimitedSlice::new("S... ".as_bytes())?,

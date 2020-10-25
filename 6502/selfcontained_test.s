@@ -1,5 +1,8 @@
 PORTB = $6000
 DDRB = $6002
+E  = %00000100
+RW = %00000010
+RS = %00000001
 
   .org $0300
 reset:
@@ -64,7 +67,7 @@ print_char:
 nmi:
 irq:
   RTI
-  .org #3EFA
+  .org $3EFA
   .word nmi
   .word reset
   .word irq
