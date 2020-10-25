@@ -1,5 +1,4 @@
 ROM_START_ADDR = $8000
-STATICS_START_ADDR = $E000
 VECTORS_START_ADDR = $FFFA
 
 PORTB = $6000
@@ -26,15 +25,27 @@ RS = %00000001
 DEFAULT_DDRA = %00000000
 DEFAULT_DDRB = %01111111
 
-PROGRAM_NMI_VECTOR = $FFF0
-PROGRAM_RESET_VECTOR = $FFF2
-PROGRAM_IRQ_VECTOR = $FFF4
+  .dsect
+  .org $3EFA
+program_nmi: .word 0
+  .org $3EFC
+program_reset: .word 0
+  .org $3EFE
+program_irq: .word 0
 
-FIVE_MILLISECOND_COUNTER_ADDR = $3FFE ; 16 bit
+  .org $3F00
+transfer_state: TransferState
+transferred_string: .blk 128
 
+  .org 3FF0
+five_millisecond_counter_addr: .word 0
 ; 8 bit, positive or zero if done, negative if not. To be set to zero by user. Used in base irq routine, functions as user-only cli.
-INITIALIZATION_DONE = $3FF0 
-BUTTON_STATE_ADDR = $3FFB ; 0000udlr
+initialization_done: .byte 0
+button_state_addr: .byte 0
+  .org $3FFF
+program_load_done: .byte 0
+  .dend
+
 
 SOFTWARE_STACK_START = $F5
 

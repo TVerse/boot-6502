@@ -3,18 +3,9 @@
 ;DEBUG=1
 
   .org ROM_START_ADDR
-  .include comms.s
 
 reset:
-  ; Turn on cursor
-  JSR wait_lcd_ready
-  LDA #%00001110
-  JSR lcd_instruction
-  STZ INITIALIZATION_DONE
-  STZ $0300
-
-  JSR set_input
-  JSR init
+  STZ initialization_done
 
 loop:
   WAI
@@ -23,16 +14,9 @@ loop:
 nmi:
 irq:
   PHA
-  LDA IFR
-  BPL .buttons ; Not the VIA?
-  AND #%00000010 ; CA2 (handshake)
-  BEQ .buttons
-    JSR dispatch
-  .buttons:
-    JSR read_buttons
-  .done:
-    PLA
-    RTI
+  JSR read_buttons
+  PLA
+  RTI
 
   .org $E000
   LDA #$FF

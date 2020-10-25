@@ -18,12 +18,6 @@ current_byte_index .byte 0
 data_taken_received .byte 0
   .endstruct
 
-  .dsect
-  .org $3E00
-transfer_state: TransferState
-transferred_string: .blk 256
-  .dend
-
 ; IDEA: encode sequence of operation for easier branching
 COMMAND_DISPLAY_STRING = $00
 COMMAND_WRITE_DATA = $01
@@ -80,7 +74,7 @@ set_input:
   STZ DDRA
   RTS
 
-init:
+init_comms:
   LDA PCR
   AND #%11111001
   ORA #%00001000
