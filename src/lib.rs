@@ -161,6 +161,7 @@ impl<'a> Command<'a> {
     }
 }
 
+#[must_use]
 pub struct Pins<'a> {
     handshake_pins: HandshakePins,
     data_pins: OutputDataPins<'a>,

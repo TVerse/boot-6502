@@ -7,15 +7,6 @@
     .endif
   .endmacro
 
-  .macro DEBUG_CHAR,char
-    .ifdef DEBUG
-      PHA
-      LDA #\char
-      JSR print_char
-      PLA
-    .endif
-  .endmacro
-
 byte_in_a_to_hex:
   PHX
   PHA
