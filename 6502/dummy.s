@@ -11,6 +11,7 @@ reset:
   LDA #%00001110
   JSR lcd_instruction
   STZ INITIALIZATION_DONE
+  STZ $0300
 
   JSR set_input
   JSR init
@@ -32,6 +33,15 @@ irq:
   .done:
     PLA
     RTI
+
+  .org $E000
+  LDA #$FF
+  STA $0300
+  LITERAL str
+  JMP print_null_terminated_string_stack
+  
+str:
+  .asciiz "JSR"
 
   .org PROGRAM_NMI_VECTOR
   .word nmi

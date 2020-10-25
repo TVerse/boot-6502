@@ -27,3 +27,7 @@ strip = "symbols"
 [[test]]
 name = "should_connect"
 harness = false
+
+[[test]]
+name = "write_read"
+harness = false

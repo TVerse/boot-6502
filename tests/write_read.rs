@@ -85,33 +85,54 @@ fn execute(pins: Pins) -> Result<Pins> {
     let mut display_string = Command::DisplayString {
         data: LengthLimitedSlice::new("Starting.".as_bytes())?,
     };
-    //    let pins = pins.execute(&mut display_string)?;
-    let mut buf = [1; 1];
-    let mut read = Command::ReadData {
-        address: 0x0300,
-        out_buffer: MutableLengthLimitedSlice::new(&mut buf)?,
-    };
+    let pins = pins.execute(&mut display_string)?;
 
-    let pins = pins.execute(&mut read)?;
-
-    if buf[0] != 0 {
-        serial_println!("Got {} but expected 0", buf[0]);
-        return Err("!");
+    let addresses = (0x200u16..0x3d00).step_by(0xED);
+    let mut data: [u8; 256] = [0; 256];
+    for (i, d) in data.iter_mut().enumerate() {
+        *d = i as u8;
+    }
+    let mut misses: usize = 0;
+    let mut pins = pins;
+    for address in addresses {
+        serial_println!("Address: {}", address);
+        let sizes = (1..257).step_by(23);
+        for size in sizes {
+            serial_println!("Size: {}", size);
+            let input_data = &data[0..size];
+            let mut write_command = Command::WriteData {
+                data: LengthLimitedSlice::new(input_data)?,
+                address,
+            };
+            let mut buf = [0; 256];
+            let output_buf = &mut buf[0..size];
+            let mut read_command = Command::ReadData {
+                out_buffer: MutableLengthLimitedSlice::new(output_buf)?,
+                address,
+            };
+            serial_println!("Writing");
+            pins = pins.execute(&mut write_command)?;
+            serial_println!("Reading");
+            pins = pins.execute(&mut read_command)?;
+            for (i, (written, read)) in input_data.iter().zip(output_buf.iter()).enumerate() {
+                if *written != *read {
+                    serial_println!(
+                        "Got a miss at base address {}, byte {}: wrote {}, read {}",
+                        address,
+                        i,
+                        written,
+                        read
+                    );
+                    misses += 1;
+                }
+            }
+        }
     }
 
-    let mut jsr = Command::JSR { address: 0xE000 };
-
-    let pins = pins.execute(&mut jsr)?.execute(&mut jsr)?;
-
-    let mut read = Command::ReadData {
-        address: 0x0300,
-        out_buffer: MutableLengthLimitedSlice::new(&mut buf)?,
-    };
-    let pins = pins.execute(&mut read)?;
-
-    if buf[0] != 255 {
-        serial_println!("Got {} but expected 255", buf[0]);
-        return Err("!");
+    if misses != 0 {
+        serial_println!("Had {} misses", misses);
+    } else {
+        serial_println!("No misses!");
     }
 
     let mut display_string = Command::DisplayString {
