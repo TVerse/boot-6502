@@ -15,9 +15,10 @@ use boot_6502::*;
 static mut PANIC_LED: MaybeUninit<port::porta::PA1<port::mode::Output>> = MaybeUninit::uninit();
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(_panic_info: &PanicInfo) -> ! {
     let led = unsafe { &mut *PANIC_LED.as_mut_ptr() };
     let mut delay = arduino_mega2560::Delay::new();
+    serial_println!("Panic!");
     loop {
         led.toggle().void_unwrap();
         delay.delay_ms(500u16);
@@ -62,6 +63,8 @@ fn main() -> ! {
 
     serial_println!("Waiting for start...");
 
+    delay.delay_ms(2000u16);
+
     while ca2.is_low().void_unwrap() {}
 
     let pins = Pins::new(&pins.ddr, ca2, ca1, pa0, pa1, pa2, pa3, pa4, pa5, pa6, pa7);
@@ -78,22 +81,63 @@ fn main() -> ! {
     }
 }
 
-fn execute(pins: Pins) -> Result<()> {
-    let mut write_data_command = Command::WriteData {
-        // TODO short data to 0x3333 works, long data does not
-        //        data: LengthLimitedSlice::new("01234567".as_bytes())?,
-        // data: LengthLimitedSlice::new("Writing lots and lots and lots of data".as_bytes())?,
-        data: LengthLimitedSlice::new(&[0; 2])?,
-        address: 0x1234,
-    };
+fn execute(pins: Pins) -> Result<Pins> {
     let mut display_string = Command::DisplayString {
-        data: LengthLimitedSlice::new("Hi!".as_bytes())?,
+        data: LengthLimitedSlice::new("Starting.".as_bytes())?,
     };
-    let _pins = pins
-        .execute(&mut display_string)?
-        .execute(&mut write_data_command)?
-        .execute(&mut display_string)?
-        .execute(&mut write_data_command)?;
+    let pins = pins.execute(&mut display_string)?;
 
-    Ok(())
+    let addresses = (0x200u16..0x3d00).step_by(0xED);
+    let mut data: [u8; 256] = [0; 256];
+    for (i, d) in data.iter_mut().enumerate() {
+        *d = i as u8;
+    }
+    let mut misses: usize = 0;
+    let mut pins = pins;
+    for address in addresses {
+        serial_println!("Address: {}", address);
+        let sizes = (1..257).step_by(23);
+        for size in sizes {
+            serial_println!("Size: {}", size);
+            let input_data = &data[0..size];
+            let mut write_command = Command::WriteData {
+                data: LengthLimitedSlice::new(input_data)?,
+                address,
+            };
+            let mut buf = [0; 256];
+            let output_buf = &mut buf[0..size];
+            let mut read_command = Command::ReadData {
+                out_buffer: MutableLengthLimitedSlice::new(output_buf)?,
+                address,
+            };
+            serial_println!("Writing");
+            pins = pins.execute(&mut write_command)?;
+            serial_println!("Reading");
+            pins = pins.execute(&mut read_command)?;
+            for (i, (written, read)) in input_data.iter().zip(output_buf.iter()).enumerate() {
+                if *written != *read {
+                    serial_println!(
+                        "Got a miss at base address {}, byte {}: wrote {}, read {}",
+                        address,
+                        i,
+                        written,
+                        read
+                    );
+                    misses += 1;
+                }
+            }
+        }
+    }
+
+    if misses != 0 {
+        serial_println!("Had {} misses", misses);
+    } else {
+        serial_println!("No misses!");
+    }
+
+    let mut display_string = Command::DisplayString {
+        data: LengthLimitedSlice::new(" Done!".as_bytes())?,
+    };
+
+    pins.execute(&mut display_string)
 }

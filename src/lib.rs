@@ -161,6 +161,7 @@ impl<'a> Command<'a> {
     }
 }
 
+#[must_use]
 pub struct Pins<'a> {
     handshake_pins: HandshakePins,
     data_pins: OutputDataPins<'a>,
@@ -202,7 +203,6 @@ impl<'a> Pins<'a> {
     }
 
     pub fn execute(mut self, command: &mut Command) -> Result<Self> {
-        serial_println!("Sending!");
         self.send_signature(command);
         command.address().iter().for_each(|a| self.send_address(*a));
         command.length().iter().for_each(|l| self.send_length(*l));
@@ -242,8 +242,7 @@ impl<'a> Pins<'a> {
     }
 
     fn send_byte(&mut self, data: u8) {
-        serial_println!("Sending {}", data);
-
+        //serial_println!("Sent: {}", data);
         let Self {
             handshake_pins,
             data_pins,
@@ -304,7 +303,7 @@ impl<'a> InputPins<'a> {
 
         let result = handshake_pins.with_read_handshake(delay, || data_pins.read_data());
 
-        serial_println!("Received {}", result);
+        //serial_println!("Received: {}", result);
 
         result
     }
@@ -344,9 +343,11 @@ impl HandshakePins {
 
         self.outgoing_handshake.set_low().void_unwrap();
 
-        delay.delay_us(2u8); // At least 1 6502 clock cycle @ 1MHz
+        delay.delay_us(2u8); // At least 1 6502 clock cycle @ 1MHz TODO is this needed?
 
         self.outgoing_handshake.set_high().void_unwrap();
+
+        while self.incoming_handshake.is_low().void_unwrap() {}
 
         result
     }
