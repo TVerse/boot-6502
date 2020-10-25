@@ -9,8 +9,8 @@ use arduino_mega2560::prelude::*;
 use atmega2560_hal::port;
 use avr_hal_generic::void::ResultVoidExt;
 
-use boot_6502::serial;
 use boot_6502::done;
+use boot_6502::serial;
 use boot_6502::serial_println;
 use lib_io::impl_avr::*;
 use lib_io::*;
@@ -44,8 +44,6 @@ fn main() -> ! {
         PANIC_LED = MaybeUninit::new(pins.d23.into_output(&pins.ddr));
         serial::init(serial);
     };
-    serial_println!("PROGRAM len: {}", PROGRAM.len());
-
     let mut reset = pins.d22.into_output(&pins.ddr);
 
     let mut ca1 = pins.d51.into_output(&pins.ddr);
@@ -86,9 +84,10 @@ fn main() -> ! {
         p7: pa7,
     };
 
-    let pins= Pins{
+    let pins = Pins {
         with_handshake,
         send_byte: write,
+        delay: WrappedDelay { delay },
     };
 
     match run(pins) {
@@ -103,14 +102,9 @@ fn main() -> ! {
     }
 }
 
-static PROGRAM: &[u8] = include_bytes!("../6502/selfcontained_test.bin");
-
-static PROGRAM_WRONG_SIZE: &str = "Program is the wrong size";
-
-fn run<WH: WithHandshake, S: SendByte>(pins: Pins<WH, S>) -> Result<Pins<WH, impl SendByte>> {
-    if PROGRAM.len() != 0x3F00 - 0x0300 {
-        return Err(PROGRAM_WRONG_SIZE);
-    };
+fn run<WH: WithHandshake, S: SendByte, D: DelayMs<u8>>(
+    pins: Pins<WH, S, D>,
+) -> Result<Pins<WH, impl SendByte, D>> {
     let mut display_string = Command::DisplayString {
         data: LengthLimitedSlice::new("S... ".as_bytes())?,
     };
@@ -136,6 +130,7 @@ fn run<WH: WithHandshake, S: SendByte>(pins: Pins<WH, S>) -> Result<Pins<WH, imp
     // };
     //
     // let pins = pins.execute(&mut set_ready)?;
+    //
 
     let mut display_string = Command::DisplayString {
         data: LengthLimitedSlice::new(" Done!".as_bytes())?,

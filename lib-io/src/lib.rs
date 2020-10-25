@@ -24,11 +24,7 @@ pub trait SendByte {
     fn into_read(self) -> Self::IntoRead;
 }
 
-trait DelayUs<A> {
-    fn delay_us(&mut self, us: A);
-}
-
-trait DelayMs<A> {
+pub trait DelayMs<A> {
     fn delay_ms(&mut self, ms: A);
 }
 
@@ -160,21 +156,24 @@ impl<'a> Command<'a> {
     }
 }
 
-pub struct Pins<WH, S>
+pub struct Pins<WH, S, D>
 where
     WH: WithHandshake,
     S: SendByte,
+    D: DelayMs<u8>,
 {
     pub with_handshake: WH,
     pub send_byte: S,
+    pub delay: D,
 }
 
-impl<WH, S> Pins<WH, S>
+impl<WH, S, D> Pins<WH, S, D>
 where
     WH: WithHandshake,
     S: SendByte,
+    D: DelayMs<u8>,
 {
-    pub fn execute(mut self, command: &mut Command) -> Result<Pins<WH, impl SendByte>> {
+    pub fn execute(mut self, command: &mut Command) -> Result<Pins<WH, impl SendByte, D>> {
         self.send_signature(command);
         command.address().iter().for_each(|a| self.send_address(*a));
         command.length().iter().for_each(|l| self.send_length(*l));
@@ -183,9 +182,10 @@ where
             .iter()
             .for_each(|lls| self.send_data(*lls));
 
-        let read_pins = ReadPins{
+        let read_pins = ReadPins {
             with_handshake: self.with_handshake,
             read_byte: self.send_byte.into_read(),
+            delay: self.delay,
         };
 
         let read_pins = read_pins.execute(command)?;
@@ -193,6 +193,7 @@ where
         Ok(Pins {
             with_handshake: read_pins.with_handshake,
             send_byte: read_pins.read_byte.into_send(),
+            delay: read_pins.delay,
         })
     }
 
@@ -231,18 +232,27 @@ where
     }
 }
 
-struct ReadPins<WH, R>
-where WH: WithHandshake, R: ReadByte {
+struct ReadPins<WH, R, D>
+where
+    WH: WithHandshake,
+    R: ReadByte,
+    D: DelayMs<u8>,
+{
     with_handshake: WH,
-    read_byte: R
+    read_byte: R,
+    delay: D,
 }
 
-impl<WH, R> ReadPins<WH, R>
-    where WH: WithHandshake, R: ReadByte  {
+impl<WH, R, D> ReadPins<WH, R, D>
+where
+    WH: WithHandshake,
+    R: ReadByte,
+    D: DelayMs<u8>,
+{
     fn execute(mut self, command: &mut Command) -> Result<Self> {
         // Need a certain delay here for handshakes to switch properly?
         // At least 2ms? Is there an extra WAI somewhere?
-        // self.delay.delay_ms(2u8);
+        self.delay.delay_ms(10u8);
         if self.receive_byte() != command.ack_byte() {
             Err(RECEIVED_UNEXPECTED_BYTE_ERROR)
         } else {
@@ -269,8 +279,6 @@ impl<WH, R> ReadPins<WH, R>
         } = self;
 
         let result = with_handshake.with_read_handshake(|| read_byte.read());
-
-        //serial_println!("Received: {}", result);
 
         result
     }

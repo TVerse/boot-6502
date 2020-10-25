@@ -4,7 +4,7 @@ use atmega2560_hal::port;
 use atmega2560_hal::port::mode::{Floating, Input, Output};
 use avr_hal_generic::void::ResultVoidExt;
 
-use crate::{ReadByte, WithHandshake, SendByte};
+use crate::{DelayMs, ReadByte, SendByte, WithHandshake};
 
 type IncomingHandshake = port::portb::PB0<Input<Floating>>;
 type OutgoingHandshake = port::portb::PB2<Output>;
@@ -17,6 +17,16 @@ type P4<A> = port::portc::PC2<A>;
 type P5<A> = port::portc::PC4<A>;
 type P6<A> = port::portc::PC6<A>;
 type P7<A> = port::porta::PA7<A>;
+
+pub struct WrappedDelay {
+    pub delay: Delay,
+}
+
+impl DelayMs<u8> for WrappedDelay {
+    fn delay_ms(&mut self, ms: u8) {
+        self.delay.delay_ms(ms);
+    }
+}
 
 pub struct Read<'a> {
     pub ddr: &'a DDR,
@@ -161,6 +171,7 @@ impl WithHandshake for Handshake {
         f();
 
         self.outgoing_handshake.set_low().void_unwrap();
+
         self.delay.delay_us(2u8); // At least 1 6502 clock cycle @ 1MHz
 
         self.outgoing_handshake.set_high().void_unwrap();
