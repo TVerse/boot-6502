@@ -92,7 +92,7 @@ impl<'a> MutableLengthLimitedSlice<'a> {
 #[derive(uDebug)]
 pub enum Command<'a> {
     DisplayString {
-        data: LengthLimitedSlice<'a>,
+        data: LengthLimitedSlice<'a>, // TODO max length is really 128
     },
     WriteData {
         address: u16,
@@ -252,7 +252,7 @@ impl<'a> Pins<'a> {
     }
 
     fn send_byte(&mut self, data: u8) {
-        serial_println!("Sending: {}", data);
+        //serial_println!("Sending: {}", data);
         let Self {
             handshake_pins,
             data_pins,
@@ -313,7 +313,7 @@ impl<'a> InputPins<'a> {
 
         let result = handshake_pins.with_read_handshake(delay, || data_pins.read_data());
 
-        serial_println!("Received: {}", result);
+        //serial_println!("Received: {}", result);
 
         result
     }

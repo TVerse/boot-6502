@@ -79,39 +79,38 @@ fn main() -> ! {
     }
 }
 
-static PROGRAM: &[u8] = include_bytes!("../6502/selfcontained_test.bin");
-
-static PROGRAM_WRONG_SIZE: &str = "Program is the wrong size";
-
 fn execute(pins: Pins) -> Result<Pins> {
-    if PROGRAM.len() != 0x3F00 - 0x0300 {
-        return Err(PROGRAM_WRONG_SIZE)
-    };
     let mut display_string = Command::DisplayString {
         data: LengthLimitedSlice::new("S... ".as_bytes())?,
     };
     let pins = pins.execute(&mut display_string)?;
-
-    let mut program_buf = [0; 256];
-    let mut pins = pins;
-
-    for load_page in 0x00..0x3C {
-        for (i, b) in program_buf.iter_mut().enumerate() {
-            *b = PROGRAM[load_page + i];
-        }
-        let mut write_data = Command::WriteData {
-            address: (load_page as u16) + 0x0300,
-            data: LengthLimitedSlice::new(&program_buf)?,
-        };
-        pins = pins.execute(&mut write_data)?;
-    }
-
-    let mut set_ready = Command::WriteData {
-        address: 0x3FF2,
-        data: LengthLimitedSlice::new(&[1])?,
+    let mut buf = [1; 1];
+    let mut read = Command::ReadData {
+        address: 0x0300,
+        out_buffer: MutableLengthLimitedSlice::new(&mut buf)?,
     };
 
-    let pins = pins.execute(&mut set_ready)?;
+    let pins = pins.execute(&mut read)?;
+
+    if buf[0] != 0 {
+        serial_println!("Got {} but expected 0", buf[0]);
+        return Err("!");
+    }
+
+    let mut jsr = Command::JSR { address: 0xE000 };
+
+    let pins = pins.execute(&mut jsr)?.execute(&mut jsr)?;
+
+    let mut read = Command::ReadData {
+        address: 0x0300,
+        out_buffer: MutableLengthLimitedSlice::new(&mut buf)?,
+    };
+    let pins = pins.execute(&mut read)?;
+
+    if buf[0] != 255 {
+        serial_println!("Got {} but expected 255", buf[0]);
+        return Err("!");
+    }
 
     let mut display_string = Command::DisplayString {
         data: LengthLimitedSlice::new(" Done!".as_bytes())?,
