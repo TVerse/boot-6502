@@ -21,9 +21,9 @@ lto = true
 opt-level = 3
 
 [[test]]
-name = "should_connect"
+name = "write_read"
 harness = false
 
 [[test]]
-name = "write_read"
+name = "jsr"
 harness = false
