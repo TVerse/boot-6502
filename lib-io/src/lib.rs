@@ -1,35 +1,46 @@
-#![no_std]
+use crate::IoError::{ReceivedUnexpectedbyte, TooLong};
+use thiserror::Error;
 
-pub type Result<A> = core::result::Result<A, &'static str>;
+pub type Result<A> = std::result::Result<A, IoError>;
 
-const TOO_LONG_ERROR: &str = "Length should be between 1 and 256";
-
-const RECEIVED_UNEXPECTED_BYTE_ERROR: &str = "Received unexpected byte";
+#[derive(Error, Debug)]
+pub enum IoError {
+    #[error("Length should be between 1 and 256")]
+    TooLong,
+    #[error("Received unexpected byte")]
+    ReceivedUnexpectedbyte,
+    #[error(transparent)]
+    Other(#[from] Box<dyn std::error::Error + Send + Sync>),
+}
 
 pub trait ReadByte {
     type IntoSend: SendByte<IntoRead = Self>;
 
-    fn read(&self) -> u8;
+    fn read(&self) -> Result<u8>;
 
-    fn into_send(self) -> Self::IntoSend;
+    fn into_send(self) -> Result<Self::IntoSend>;
 }
 
 pub trait SendByte {
     type IntoRead: ReadByte<IntoSend = Self>;
 
-    fn send(&mut self, byte: u8);
+    fn send(&mut self, byte: u8) -> Result<()>;
 
-    fn into_read(self) -> Self::IntoRead;
+    fn into_read(self) -> Result<Self::IntoRead>;
 }
 
-pub trait DelayMs<A> {
-    fn delay_ms(&mut self, ms: A);
+pub trait DelayMs {
+    fn delay_ms(&mut self, ms: u64);
+}
+
+pub trait DelayUs {
+    fn delay_us(&mut self, us: u64);
 }
 
 pub trait WithHandshake {
-    fn with_write_handshake<F: FnOnce()>(&mut self, f: F);
+    fn with_write_handshake<F: FnOnce() -> Result<()>>(&mut self, f: F) -> Result<()>;
 
-    fn with_read_handshake<F: FnOnce() -> u8>(&mut self, f: F) -> u8;
+    fn with_read_handshake<F: FnOnce() -> Result<u8>>(&mut self, f: F) -> Result<u8>;
 }
 
 pub struct AdjustedLength(u8);
@@ -40,7 +51,7 @@ impl AdjustedLength {
             // Wrap 256 to 0
             Ok(AdjustedLength(len as u8))
         } else {
-            Err(TOO_LONG_ERROR)
+            Err(TooLong)
         }
     }
 }
@@ -158,7 +169,7 @@ pub struct Pins<WH, S, D>
 where
     WH: WithHandshake,
     S: SendByte,
-    D: DelayMs<u8>,
+    D: DelayMs,
 {
     pub with_handshake: WH,
     pub send_byte: S,
@@ -169,20 +180,26 @@ impl<WH, S, D> Pins<WH, S, D>
 where
     WH: WithHandshake,
     S: SendByte,
-    D: DelayMs<u8>,
+    D: DelayMs,
 {
     pub fn execute(mut self, command: &mut Command) -> Result<Pins<WH, S, D>> {
-        self.send_signature(command);
-        command.address().iter().for_each(|a| self.send_address(*a));
-        command.length().iter().for_each(|l| self.send_length(*l));
+        self.send_signature(command)?;
+        command
+            .address()
+            .iter()
+            .try_for_each(|a| self.send_address(*a))?;
+        command
+            .length()
+            .iter()
+            .try_for_each(|l| self.send_length(*l))?;
         command
             .sendable_data()
             .iter()
-            .for_each(|lls| self.send_data(*lls));
+            .try_for_each(|lls| self.send_data(*lls))?;
 
         let read_pins = ReadPins {
             with_handshake: self.with_handshake,
-            read_byte: self.send_byte.into_read(),
+            read_byte: self.send_byte.into_read()?,
             delay: self.delay,
         };
 
@@ -190,35 +207,38 @@ where
 
         Ok(Pins {
             with_handshake: read_pins.with_handshake,
-            send_byte: read_pins.read_byte.into_send(),
+            send_byte: read_pins.read_byte.into_send()?,
             delay: read_pins.delay,
         })
     }
 
-    fn send_signature(&mut self, command: &Command) {
+    fn send_signature(&mut self, command: &Command) -> Result<()> {
         self.send_byte(command.signature_byte())
     }
 
-    fn send_length(&mut self, length: u8) {
+    fn send_length(&mut self, length: u8) -> Result<()> {
         self.send_byte(length)
     }
 
-    fn send_address(&mut self, address: u16) {
+    fn send_address(&mut self, address: u16) -> Result<()> {
         let address = address.to_le_bytes();
 
         for b in address.iter() {
-            self.send_byte(*b);
+            self.send_byte(*b)?;
         }
+
+        Ok(())
     }
 
-    fn send_data(&mut self, lls: &LengthLimitedSlice) {
+    fn send_data(&mut self, lls: &LengthLimitedSlice) -> Result<()> {
         let LengthLimitedSlice { data, .. } = lls;
         for d in data.iter() {
-            self.send_byte(*d);
+            self.send_byte(*d)?;
         }
+        Ok(())
     }
 
-    fn send_byte(&mut self, data: u8) {
+    fn send_byte(&mut self, data: u8) -> Result<()> {
         //serial_println!("Sending: {}", data);
         let Self {
             with_handshake,
@@ -226,7 +246,7 @@ where
             ..
         } = self;
 
-        with_handshake.with_write_handshake(|| send_byte.send(data));
+        with_handshake.with_write_handshake(|| send_byte.send(data))
     }
 }
 
@@ -234,7 +254,7 @@ struct ReadPins<WH, R, D>
 where
     WH: WithHandshake,
     R: ReadByte,
-    D: DelayMs<u8>,
+    D: DelayMs,
 {
     with_handshake: WH,
     read_byte: R,
@@ -245,31 +265,32 @@ impl<WH, R, D> ReadPins<WH, R, D>
 where
     WH: WithHandshake,
     R: ReadByte,
-    D: DelayMs<u8>,
+    D: DelayMs,
 {
     fn execute(mut self, command: &mut Command) -> Result<Self> {
         // Need a certain delay here for handshakes to switch properly?
         // At least 2ms? Is there an extra WAI somewhere?
-        self.delay.delay_ms(10u8);
-        if self.receive_byte() != command.ack_byte() {
-            Err(RECEIVED_UNEXPECTED_BYTE_ERROR)
+        self.delay.delay_ms(10);
+        if self.receive_byte()? != command.ack_byte() {
+            Err(ReceivedUnexpectedbyte)
         } else {
             command
                 .receivable_data()
                 .iter_mut()
-                .for_each(|mlls| self.receive_data(*mlls));
+                .try_for_each(|mlls| self.receive_data(*mlls))?;
             Ok(self)
         }
     }
 
-    fn receive_data(&mut self, mlls: &mut MutableLengthLimitedSlice) {
+    fn receive_data(&mut self, mlls: &mut MutableLengthLimitedSlice) -> Result<()> {
         let MutableLengthLimitedSlice { data, .. } = mlls;
         for d in data.iter_mut() {
-            *d = self.receive_byte();
+            *d = self.receive_byte()?;
         }
+        Ok(())
     }
 
-    fn receive_byte(&mut self) -> u8 {
+    fn receive_byte(&mut self) -> Result<u8> {
         let Self {
             with_handshake,
             read_byte,

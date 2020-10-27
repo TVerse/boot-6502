@@ -1,110 +1,154 @@
-#![no_std]
-#![no_main]
-#![feature(custom_test_frameworks)]
-
-use core::mem::MaybeUninit;
-use core::panic::PanicInfo;
-
-use arduino_mega2560::prelude::*;
-use atmega2560_hal::port;
-use avr_hal_generic::void::ResultVoidExt;
-
-use boot_6502::done;
-use boot_6502::serial;
-use boot_6502::serial_println;
+use gpio_cdev::{Chip, Line, LineHandle, LineRequestFlags};
 use lib_io::*;
-use lib_io_avr::*;
-
-static mut PANIC_LED: MaybeUninit<port::porta::PA1<port::mode::Output>> = MaybeUninit::uninit();
+use lib_io_rpi::*;
+use lib_io_rpi::pins::*;
+use std::marker::PhantomData;
 
 static PROGRAM: &[u8] = include_bytes!("../6502/selfcontained_test.bin");
 
-#[panic_handler]
-fn panic(_panic_info: &PanicInfo) -> ! {
-    let led = unsafe { &mut *PANIC_LED.as_mut_ptr() };
-    let mut delay = arduino_mega2560::Delay::new();
-    serial_println!("Panic!");
-    loop {
-        led.toggle().void_unwrap();
-        delay.delay_ms(500u16);
-    }
+fn get_pin(chip: &mut Chip, flags: LineRequestFlags, number: u32, description: &'static str) -> Result<(Line, LineHandle)> {
+    let line = chip.get_line(number).map_err(|e| IoError::Other(Box::new(e)))?;
+    let line_handle = line.request(flags, 0, description).map_err(|e| IoError::Other(Box::new(e)))?;
+    Ok((line, line_handle))
 }
 
-#[arduino_mega2560::entry]
-fn main() -> ! {
-    let dp = arduino_mega2560::Peripherals::take().unwrap_or_else(|| panic!());
-    let mut delay = arduino_mega2560::Delay::new();
-    let pins = arduino_mega2560::Pins::new(
-        dp.PORTA, dp.PORTB, dp.PORTC, dp.PORTD, dp.PORTE, dp.PORTF, dp.PORTG, dp.PORTH, dp.PORTJ,
-        dp.PORTK, dp.PORTL,
-    );
+fn main() -> Result<()> {
+    let mut delay = Delay;
+    let mut chip = Chip::new("/dev/gpiochip0").map_err(|e| IoError::Other(Box::new(e)))?;
+    let c = &mut chip;
 
-    let serial =
-        arduino_mega2560::Serial::new(dp.USART0, pins.d0, pins.d1.into_output(&pins.ddr), 57600);
-
-    unsafe {
-        PANIC_LED = MaybeUninit::new(pins.d23.into_output(&pins.ddr));
-        serial::init(serial);
+    let reset = 1;
+    let mut reset ={
+        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, reset, "reset")?;
+        Reset {
+            line,
+            handle,
+        }
     };
-    let mut reset = pins.d22.into_output(&pins.ddr);
 
-    let mut ca1 = pins.d51.into_output(&pins.ddr);
-    let ca2 = pins.d53;
-    let pa0 = pins.d43.into_output(&pins.ddr);
-    let pa1 = pins.d41.into_output(&pins.ddr);
-    let pa2 = pins.d39.into_output(&pins.ddr);
-    let pa3 = pins.d37.into_output(&pins.ddr);
-    let pa4 = pins.d35.into_output(&pins.ddr);
-    let pa5 = pins.d33.into_output(&pins.ddr);
-    let pa6 = pins.d31.into_output(&pins.ddr);
-    let pa7 = pins.d29.into_output(&pins.ddr);
+    let ca1 = 0;
+    let mut outgoing_handshake = {
+        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, ca1, "ca1")?;
+        OutgoingHandshake {
+            line,
+            handle,
+        }
+    };
+    let ca2 = 0;
+    let incoming_handshake = {
+        let (line, handle) = get_pin(c, LineRequestFlags::INPUT, ca2, "ca2")?;
+        IncomingHandshake {
+            line,
+            handle,
+        }
+    };
+    let pa0 = 0;
+    let p0 = {
+        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa0, "p0")?;
+        P0{
+            line,
+            handle,
+            _pd: PhantomData
+        }
+    };
+    let pa1 = 0;
+    let p1 ={
+        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa1, "p1")?;
+        P1{
+            line,
+            handle,
+            _pd: PhantomData
+        }
+    };
+    let pa2 = 0;
+    let p2 = {
+        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa2, "p2")?;
+        P2{
+            line,
+            handle,
+            _pd: PhantomData
+        }
+    };
+    let pa3 =0;
+    let p3 = {
+        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa3, "p3")?;
+        P3{
+            line,
+            handle,
+            _pd: PhantomData
+        }
+    };
+    let pa4 = 0;
+    let p4 = {
+        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa4, "p4")?;
+        P4{
+            line,
+            handle,
+            _pd: PhantomData
+        }
+    };
+    let pa5 = 0;
+    let p5 = {
+        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa5, "p5")?;
+        P5{
+            line,
+            handle,
+            _pd: PhantomData
+        }
+    };
+    let pa6 = 0;
+    let p6 = {
+        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa6, "p6")?;
+        P6{
+            line,
+            handle,
+            _pd: PhantomData
+        }
+    };
+    let pa7 =0;
+    let p7 = {
+        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa7, "p7")?;
+        P7{
+            line,
+            handle,
+            _pd: PhantomData
+        }
+    };
 
-    ca1.set_high().void_unwrap();
+    outgoing_handshake.set_high()?;
 
-    reset.set_low().void_unwrap();
-    delay.delay_us(5u8);
-    reset.set_high().void_unwrap();
+    reset.set_low()?;
+    delay.delay_us(5);
+    reset.set_high()?;
 
-    serial_println!("Waiting for start...");
-
-    while ca2.is_low().void_unwrap() {}
+    while incoming_handshake.is_low()? {}
 
     let with_handshake = Handshake {
-        incoming_handshake: ca2,
-        outgoing_handshake: ca1,
-        delay: arduino_mega2560::Delay::new(),
+        incoming_handshake,
+        outgoing_handshake,
+        delay,
     };
     let write = Write {
-        ddr: &pins.ddr,
-        p0: pa0,
-        p1: pa1,
-        p2: pa2,
-        p3: pa3,
-        p4: pa4,
-        p5: pa5,
-        p6: pa6,
-        p7: pa7,
+        p0,
+        p1,
+        p2,
+        p3,
+        p4,
+        p5,
+        p6,
+        p7,
     };
 
     let pins = Pins {
         with_handshake,
         send_byte: write,
-        delay: WrappedDelay { delay },
+        delay,
     };
 
-    match run(pins) {
-        Ok(_) => {
-            serial_println!("Success!");
-            done();
-        }
-        Err(e) => {
-            serial_println!("ERROR: {}", e);
-            panic!(e);
-        }
-    }
+    run(pins).map(|_| ())
 }
 
-fn run<WH: WithHandshake, S: SendByte, D: DelayMs<u8>>(
+fn run<WH: WithHandshake, S: SendByte, D: DelayMs>(
     pins: Pins<WH, S, D>,
 ) -> Result<Pins<WH, S, D>> {
     let mut display_string = Command::DisplayString {

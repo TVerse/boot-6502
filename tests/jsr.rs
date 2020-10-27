@@ -20,7 +20,7 @@ fn panic(_panic_info: &PanicInfo) -> ! {
     let mut delay = arduino_mega2560::Delay::new();
     serial_println!("Panic!");
     loop {
-        led.toggle().void_unwrap();
+        led.toggle()?;
         delay.delay_ms(500u16);
     }
 }
@@ -55,15 +55,15 @@ fn main() -> ! {
     let pa6 = pins.d31.into_output(&pins.ddr);
     let pa7 = pins.d29.into_output(&pins.ddr);
 
-    ca1.set_high().void_unwrap();
+    ca1.set_high()?;
 
-    reset.set_low().void_unwrap();
+    reset.set_low()?;
     delay.delay_us(5u8);
-    reset.set_high().void_unwrap();
+    reset.set_high()?;
 
     serial_println!("Waiting for start...");
 
-    while ca2.is_low().void_unwrap() {}
+    while ca2.is_low()? {}
 
     let pins = Pins::new(&pins.ddr, ca2, ca1, pa0, pa1, pa2, pa3, pa4, pa5, pa6, pa7);
 

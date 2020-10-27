@@ -15,7 +15,7 @@ fn panic(_info: &PanicInfo) -> ! {
     let led = unsafe { &mut *PANIC_LED.as_mut_ptr() };
     let mut delay = arduino_mega2560::Delay::new();
     loop {
-        led.toggle().void_unwrap();
+        led.toggle()?;
         delay.delay_ms(500u16);
     }
 }
@@ -36,7 +36,7 @@ fn main() -> ! {
     let mut serial =
         arduino_mega2560::Serial::new(dp.USART0, pins.d0, pins.d1.into_output(&pins.ddr), 57600);
 
-    ufmt::uwriteln!(&mut serial, "\n\u{04}").void_unwrap();
+    ufmt::uwriteln!(&mut serial, "\n\u{04}")?;
     loop {
         delay.delay_ms(10000u16);
     }
