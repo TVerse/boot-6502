@@ -9,21 +9,3 @@ lib-io = { path = "lib-io" }
 lib-io-rpi = { path = "lib-io-rpi" }
 gpio-cdev = "0.4"
 
-[profile.dev]
-lto = true
-opt-level = 1
-debug = true
-
-[profile.release]
-codegen-units = 1
-debug = false
-lto = true
-opt-level = 3
-
-[[test]]
-name = "write_read"
-harness = false
-
-[[test]]
-name = "jsr"
-harness = false

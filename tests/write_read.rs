@@ -2,8 +2,10 @@ use boot_6502::initialize;
 
 use lib_io::*;
 
-fn main() -> Result<()> {
+#[test]
+fn test_write_read() -> Result<()> {
     let pins = initialize()?;
+    Ok(())
     run(pins).map(|_| ())
 }
 
@@ -13,7 +15,7 @@ fn run<WH: WithHandshake, S: SendByte, D: DelayMs>(pins: Pins<WH, S, D>) -> Resu
     };
     let pins = pins.execute(&mut display_string)?;
 
-    let addresses = (0x200u16..0x3d00).step_by(0xED);
+    let addresses = (0x200u16..0x3d00).step_by(0xFED);
     let mut data: [u8; 256] = [0; 256];
     for (i, d) in data.iter_mut().enumerate() {
         *d = i as u8;
@@ -21,10 +23,9 @@ fn run<WH: WithHandshake, S: SendByte, D: DelayMs>(pins: Pins<WH, S, D>) -> Resu
     let mut misses: usize = 0;
     let mut pins = pins;
     for address in addresses {
-        serial_println!("Address: {}", address);
-        let sizes = (1..257).step_by(23);
+        println!("Address: {:#X}", address);
+        let sizes = (1..257).step_by(47);
         for size in sizes {
-            serial_println!("Size: {}", size);
             let input_data = &data[0..size];
             let mut write_command = Command::WriteData {
                 data: LengthLimitedSlice::new(input_data)?,
@@ -36,18 +37,13 @@ fn run<WH: WithHandshake, S: SendByte, D: DelayMs>(pins: Pins<WH, S, D>) -> Resu
                 out_buffer: MutableLengthLimitedSlice::new(output_buf)?,
                 address,
             };
-            serial_println!("Writing");
             pins = pins.execute(&mut write_command)?;
-            serial_println!("Reading");
             pins = pins.execute(&mut read_command)?;
             for (i, (written, read)) in input_data.iter().zip(output_buf.iter()).enumerate() {
                 if *written != *read {
-                    serial_println!(
+                    println!(
                         "Got a miss at base address {}, byte {}: wrote {}, read {}",
-                        address,
-                        i,
-                        written,
-                        read
+                        address, i, written, read
                     );
                     misses += 1;
                 }
@@ -56,9 +52,9 @@ fn run<WH: WithHandshake, S: SendByte, D: DelayMs>(pins: Pins<WH, S, D>) -> Resu
     }
 
     if misses != 0 {
-        serial_println!("Had {} misses", misses);
+        panic!("Had {} misses", misses);
     } else {
-        serial_println!("No misses!");
+        println!("No misses!");
     }
 
     let mut display_string = Command::DisplayString {

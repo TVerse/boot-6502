@@ -2,7 +2,8 @@ use boot_6502::initialize;
 
 use lib_io::*;
 
-fn main() -> Result<()> {
+#[test]
+fn test_jsr() -> Result<()> {
     let pins = initialize()?;
     run(pins).map(|_| ())
 }
