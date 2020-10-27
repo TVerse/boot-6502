@@ -79,6 +79,7 @@ impl TryFrom<P0<Input>> for P0<Output> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P0<Input>) -> std::result::Result<Self, Self::Error> {
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::OUTPUT, 0, "P0_out")?;
         Ok(Self {
             line: value.line,
@@ -91,6 +92,7 @@ impl TryFrom<P1<Input>> for P1<Output> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P1<Input>) -> std::result::Result<Self, Self::Error> {
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::OUTPUT, 0, "P0_out")?;
         Ok(Self {
             line: value.line,
@@ -103,6 +105,7 @@ impl TryFrom<P2<Input>> for P2<Output> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P2<Input>) -> std::result::Result<Self, Self::Error> {
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::OUTPUT, 0, "P0_out")?;
         Ok(Self {
             line: value.line,
@@ -115,6 +118,7 @@ impl TryFrom<P3<Input>> for P3<Output> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P3<Input>) -> std::result::Result<Self, Self::Error> {
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::OUTPUT, 0, "P0_out")?;
         Ok(Self {
             line: value.line,
@@ -127,6 +131,7 @@ impl TryFrom<P4<Input>> for P4<Output> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P4<Input>) -> std::result::Result<Self, Self::Error> {
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::OUTPUT, 0, "P0_out")?;
         Ok(Self {
             line: value.line,
@@ -139,6 +144,7 @@ impl TryFrom<P5<Input>> for P5<Output> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P5<Input>) -> std::result::Result<Self, Self::Error> {
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::OUTPUT, 0, "P0_out")?;
         Ok(Self {
             line: value.line,
@@ -151,6 +157,7 @@ impl TryFrom<P6<Input>> for P6<Output> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P6<Input>) -> std::result::Result<Self, Self::Error> {
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::OUTPUT, 0, "P0_out")?;
         Ok(Self {
             line: value.line,
@@ -163,6 +170,7 @@ impl TryFrom<P7<Input>> for P7<Output> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P7<Input>) -> std::result::Result<Self, Self::Error> {
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::OUTPUT, 0, "P0_out")?;
         Ok(Self {
             line: value.line,
@@ -176,7 +184,7 @@ impl TryFrom<P0<Output>> for P0<Input> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P0<Output>) -> std::result::Result<Self, Self::Error> {
-        println!("P0");
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::INPUT, 0, "P0_in")?;
         Ok(Self {
             line: value.line,
@@ -189,7 +197,7 @@ impl TryFrom<P1<Output>> for P1<Input> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P1<Output>) -> std::result::Result<Self, Self::Error> {
-        println!("P1");
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::INPUT, 0, "P0_in")?;
         Ok(Self {
             line: value.line,
@@ -202,6 +210,7 @@ impl TryFrom<P2<Output>> for P2<Input> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P2<Output>) -> std::result::Result<Self, Self::Error> {
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::INPUT, 0, "P0_in")?;
         Ok(Self {
             line: value.line,
@@ -214,6 +223,7 @@ impl TryFrom<P3<Output>> for P3<Input> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P3<Output>) -> std::result::Result<Self, Self::Error> {
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::INPUT, 0, "P0_in")?;
         Ok(Self {
             line: value.line,
@@ -226,6 +236,7 @@ impl TryFrom<P4<Output>> for P4<Input> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P4<Output>) -> std::result::Result<Self, Self::Error> {
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::INPUT, 0, "P0_in")?;
         Ok(Self {
             line: value.line,
@@ -238,6 +249,7 @@ impl TryFrom<P5<Output>> for P5<Input> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P5<Output>) -> std::result::Result<Self, Self::Error> {
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::INPUT, 0, "P0_in")?;
         Ok(Self {
             line: value.line,
@@ -250,6 +262,7 @@ impl TryFrom<P6<Output>> for P6<Input> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P6<Output>) -> std::result::Result<Self, Self::Error> {
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::INPUT, 0, "P0_in")?;
         Ok(Self {
             line: value.line,
@@ -262,6 +275,7 @@ impl TryFrom<P7<Output>> for P7<Input> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P7<Output>) -> std::result::Result<Self, Self::Error> {
+        drop(value.handle);
         let output_handle = value.line.request(LineRequestFlags::INPUT, 0, "P0_in")?;
         Ok(Self {
             line: value.line,
