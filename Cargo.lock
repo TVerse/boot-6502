@@ -71,6 +71,7 @@ dependencies = [
  "arduino-mega2560",
  "atmega2560-hal",
  "avr-hal-generic",
+ "lib-io",
  "ufmt",
 ]
 
@@ -88,6 +89,15 @@ checksum = "fa998ce59ec9765d15216393af37a58961ddcefb14c753b4816ba2191d865fcb"
 dependencies = [
  "nb 0.1.3",
  "void",
+]
+
+[[package]]
+name = "lib-io"
+version = "0.1.0"
+dependencies = [
+ "arduino-mega2560",
+ "atmega2560-hal",
+ "avr-hal-generic",
 ]
 
 [[package]]

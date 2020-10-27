@@ -7,26 +7,11 @@ SEND_NEXT_DATA = $05
 DATA_SENT = $06
 ACK_SENT = $FF
 
-  .struct TransferState
-done .byte 0
-command .byte 0
-next .byte 0
-length .byte 0
-data_pointer .word 0
-current_byte_index .byte 0
-data_taken_received .byte 0
-  .endstruct
-
-  .dsect
-  .org $3E00
-transfer_state: TransferState
-transferred_string: .blk 256
-  .dend
-
 ; IDEA: encode sequence of operation for easier branching
 COMMAND_DISPLAY_STRING = $00
 COMMAND_WRITE_DATA = $01
 COMMAND_READ_DATA = $02
+COMMAND_JSR = $03 ; TODO should this happen within the interrupt handler?
 
 ACK = $01
 ACKDATA = $02
@@ -78,7 +63,7 @@ set_input:
   STZ DDRA
   RTS
 
-init:
+init_comms:
   LDA PCR
   AND #%11111001
   ORA #%00001000
@@ -89,6 +74,8 @@ init:
   STZ transfer_state + TransferState.done
   STZ transfer_state + TransferState.next
   STZ transfer_state + TransferState.current_byte_index
+  LDA #$4C ; JMP
+  STA transfer_state + TransferState.jmp
   RTS
 
 receive_command:
@@ -99,6 +86,8 @@ receive_command:
   BEQ .write_data
   CMP #COMMAND_READ_DATA
   BEQ .read_data
+  CMP #COMMAND_JSR
+  BEQ .jsr
   .unknown:
     LITERAL unknown_command_error
     JMP error
@@ -112,6 +101,7 @@ receive_command:
     RTS
   .write_data:
   .read_data:
+  .jsr:
     LDA #EXPECT_NEXT_ADDR_LOW
     STA transfer_state + TransferState.next
     RTS
@@ -126,9 +116,15 @@ receive_addr_low:
 receive_addr_high:
   LDA PORTA
   STA transfer_state + TransferState.data_pointer + 1
-  LDA #EXPECT_NEXT_LEN
-  STA transfer_state + TransferState.next
-  RTS
+  LDA transfer_state + TransferState.command
+  CMP #COMMAND_JSR
+  BEQ .jsr
+    LDA #EXPECT_NEXT_LEN
+    STA transfer_state + TransferState.next
+    RTS
+  .jsr:
+    JSR transfer_state + TransferState.jmp
+    JMP send_ack
 
 receive_len:
   DEBUG_CHAR "L"

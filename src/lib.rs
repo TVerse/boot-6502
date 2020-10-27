@@ -92,7 +92,7 @@ impl<'a> MutableLengthLimitedSlice<'a> {
 #[derive(uDebug)]
 pub enum Command<'a> {
     DisplayString {
-        data: LengthLimitedSlice<'a>,
+        data: LengthLimitedSlice<'a>, // TODO max length is really 128
     },
     WriteData {
         address: u16,
@@ -102,12 +102,16 @@ pub enum Command<'a> {
         address: u16,
         out_buffer: MutableLengthLimitedSlice<'a>,
     },
+    JSR {
+        address: u16,
+    },
 }
 
 impl<'a> Command<'a> {
     const DISPLAY_STRING_SIGNATURE: u8 = 0x00;
     const WRITE_DATA_SIGNATURE: u8 = 0x01;
     const READ_DATA_SIGNATURE: u8 = 0x02;
+    const JSR_SIGNATURE: u8 = 0x03;
 
     const PLAIN_ACK: u8 = 0x01;
     const DATA_FOLLOWING_ACK: u8 = 0x02;
@@ -117,6 +121,7 @@ impl<'a> Command<'a> {
             Command::DisplayString { .. } => Command::DISPLAY_STRING_SIGNATURE,
             Command::WriteData { .. } => Command::WRITE_DATA_SIGNATURE,
             Command::ReadData { .. } => Command::READ_DATA_SIGNATURE,
+            Command::JSR { .. } => Command::JSR_SIGNATURE,
         }
     }
 
@@ -125,6 +130,7 @@ impl<'a> Command<'a> {
             Command::DisplayString { .. } => Command::PLAIN_ACK,
             Command::WriteData { .. } => Command::PLAIN_ACK,
             Command::ReadData { .. } => Command::DATA_FOLLOWING_ACK,
+            Command::JSR { .. } => Command::PLAIN_ACK,
         }
     }
 
@@ -133,6 +139,7 @@ impl<'a> Command<'a> {
             Command::DisplayString { data, .. } => Some(data.data_length.0),
             Command::WriteData { data, .. } => Some(data.data_length.0),
             Command::ReadData { out_buffer, .. } => Some(out_buffer.data_length.0),
+            Command::JSR { .. } => None,
         }
     }
 
@@ -141,6 +148,7 @@ impl<'a> Command<'a> {
             Command::DisplayString { .. } => None,
             Command::WriteData { address, .. } => Some(*address),
             Command::ReadData { address, .. } => Some(*address),
+            Command::JSR { address, .. } => Some(*address),
         }
     }
 
@@ -149,6 +157,7 @@ impl<'a> Command<'a> {
             Command::DisplayString { data, .. } => Some(data),
             Command::WriteData { data, .. } => Some(data),
             Command::ReadData { .. } => None,
+            Command::JSR { .. } => None,
         }
     }
 
@@ -157,6 +166,7 @@ impl<'a> Command<'a> {
             Command::DisplayString { .. } => None,
             Command::WriteData { .. } => None,
             Command::ReadData { out_buffer, .. } => Some(out_buffer),
+            Command::JSR { .. } => None,
         }
     }
 }
@@ -242,7 +252,7 @@ impl<'a> Pins<'a> {
     }
 
     fn send_byte(&mut self, data: u8) {
-        //serial_println!("Sent: {}", data);
+        //serial_println!("Sending: {}", data);
         let Self {
             handshake_pins,
             data_pins,

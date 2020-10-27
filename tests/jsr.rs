@@ -9,15 +9,10 @@ use arduino_mega2560::prelude::*;
 use atmega2560_hal::port;
 use avr_hal_generic::void::ResultVoidExt;
 
-use boot_6502::done;
 use boot_6502::serial;
-use boot_6502::serial_println;
-use lib_io::impl_avr::*;
-use lib_io::*;
+use boot_6502::*;
 
 static mut PANIC_LED: MaybeUninit<port::porta::PA1<port::mode::Output>> = MaybeUninit::uninit();
-
-static PROGRAM: &[u8] = include_bytes!("../6502/selfcontained_test.bin");
 
 #[panic_handler]
 fn panic(_panic_info: &PanicInfo) -> ! {
@@ -46,6 +41,7 @@ fn main() -> ! {
         PANIC_LED = MaybeUninit::new(pins.d23.into_output(&pins.ddr));
         serial::init(serial);
     };
+
     let mut reset = pins.d22.into_output(&pins.ddr);
 
     let mut ca1 = pins.d51.into_output(&pins.ddr);
@@ -69,30 +65,9 @@ fn main() -> ! {
 
     while ca2.is_low().void_unwrap() {}
 
-    let with_handshake = Handshake {
-        incoming_handshake: ca2,
-        outgoing_handshake: ca1,
-        delay: arduino_mega2560::Delay::new(),
-    };
-    let write = Write {
-        ddr: &pins.ddr,
-        p0: pa0,
-        p1: pa1,
-        p2: pa2,
-        p3: pa3,
-        p4: pa4,
-        p5: pa5,
-        p6: pa6,
-        p7: pa7,
-    };
+    let pins = Pins::new(&pins.ddr, ca2, ca1, pa0, pa1, pa2, pa3, pa4, pa5, pa6, pa7);
 
-    let pins = Pins {
-        with_handshake,
-        send_byte: write,
-        delay: WrappedDelay { delay },
-    };
-
-    match run(pins) {
+    match execute(pins) {
         Ok(_) => {
             serial_println!("Success!");
             done();
@@ -104,35 +79,38 @@ fn main() -> ! {
     }
 }
 
-fn run<WH: WithHandshake, S: SendByte, D: DelayMs<u8>>(
-    pins: Pins<WH, S, D>,
-) -> Result<Pins<WH, S, D>> {
+fn execute(pins: Pins) -> Result<Pins> {
     let mut display_string = Command::DisplayString {
         data: LengthLimitedSlice::new("S... ".as_bytes())?,
     };
     let pins = pins.execute(&mut display_string)?;
-
-    let mut program_buf = [0; 256];
-    let mut pins = pins;
-
-    for load_page in 0x00..0x3C {
-        for (i, b) in program_buf.iter_mut().enumerate() {
-            *b = PROGRAM[load_page + i];
-        }
-        let mut write_data = Command::WriteData {
-            address: (load_page as u16) + 0x0300,
-            data: LengthLimitedSlice::new(&program_buf)?,
-        };
-        pins = pins.execute(&mut write_data)?;
-    }
-
-    let mut set_ready = Command::WriteData {
-        address: 0x3FF2,
-        data: LengthLimitedSlice::new(&[1])?,
+    let mut buf = [1; 1];
+    let mut read = Command::ReadData {
+        address: 0x0300,
+        out_buffer: MutableLengthLimitedSlice::new(&mut buf)?,
     };
 
-    let pins = pins.execute(&mut set_ready)?;
+    let pins = pins.execute(&mut read)?;
 
+    if buf[0] != 0 {
+        serial_println!("Got {} but expected 0", buf[0]);
+        return Err("!");
+    }
+
+    let mut jsr = Command::JSR { address: 0xE000 };
+
+    let pins = pins.execute(&mut jsr)?.execute(&mut jsr)?;
+
+    let mut read = Command::ReadData {
+        address: 0x0300,
+        out_buffer: MutableLengthLimitedSlice::new(&mut buf)?,
+    };
+    let pins = pins.execute(&mut read)?;
+
+    if buf[0] != 255 {
+        serial_println!("Got {} but expected 255", buf[0]);
+        return Err("!");
+    }
 
     let mut display_string = Command::DisplayString {
         data: LengthLimitedSlice::new(" Done!".as_bytes())?,
