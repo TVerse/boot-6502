@@ -12,11 +12,13 @@ atmega2560-hal = { git = "https://github.com/Rahix/avr-hal", rev = "0c6cf16" }
 avr-hal-generic = { git = "https://github.com/Rahix/avr-hal", rev = "0c6cf16" }
 ufmt = "0.1.0"
 lib-io = { path = "lib-io" }
+lib-io-avr = { path = "lib-io-avr" }
 
 [profile.dev]
 lto = true
 opt-level = "s"
 debug = true
+panic = "abort"
 
 [profile.release]
 codegen-units = 1
@@ -24,6 +26,7 @@ debug = false
 lto = true
 opt-level = "s"
 strip = "symbols"
+panic = "abort"
 
 [[test]]
 name = "should_connect"

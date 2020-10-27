@@ -12,8 +12,8 @@ use avr_hal_generic::void::ResultVoidExt;
 use boot_6502::done;
 use boot_6502::serial;
 use boot_6502::serial_println;
-use lib_io::impl_avr::*;
 use lib_io::*;
+use lib_io_avr::*;
 
 static mut PANIC_LED: MaybeUninit<port::porta::PA1<port::mode::Output>> = MaybeUninit::uninit();
 
@@ -132,7 +132,6 @@ fn run<WH: WithHandshake, S: SendByte, D: DelayMs<u8>>(
     };
 
     let pins = pins.execute(&mut set_ready)?;
-
 
     let mut display_string = Command::DisplayString {
         data: LengthLimitedSlice::new(" Done!".as_bytes())?,

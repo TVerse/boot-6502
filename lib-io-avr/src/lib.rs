@@ -1,10 +1,12 @@
+#![no_std]
+
 use arduino_mega2560::prelude::*;
 use arduino_mega2560::{Delay, DDR};
 use atmega2560_hal::port;
 use atmega2560_hal::port::mode::{Floating, Input, Output};
 use avr_hal_generic::void::ResultVoidExt;
 
-use crate::{DelayMs, ReadByte, SendByte, WithHandshake};
+use lib_io::{DelayMs, ReadByte, SendByte, WithHandshake};
 
 type IncomingHandshake = port::portb::PB0<Input<Floating>>;
 type OutgoingHandshake = port::portb::PB2<Output>;

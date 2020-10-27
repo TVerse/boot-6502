@@ -5,10 +5,10 @@ pub static mut SERIAL: Option<Serial<Floating>> = None;
 
 /// Puts the Serial in the static mut
 ///
-/// # SAFETY
+/// # Safety
 ///
 /// Does not do any synchronization.
-/// Must be called before `serial_print` or `serial_println`.
+/// `serial_print` and `serial_println` will be noops before this is called.
 pub unsafe fn init(serial: Serial<Floating>) {
     SERIAL = Some(serial);
 }
@@ -19,7 +19,7 @@ macro_rules! serial_print {
     ($($arg:tt)*) => {
         match unsafe { &mut $crate::serial::SERIAL } {
             Some(serial) => ufmt::uwrite!(serial, $($arg)*).void_unwrap(),
-            None => panic!(),
+            None => (),
         };
     };
 }
@@ -30,7 +30,7 @@ macro_rules! serial_println {
     ($($arg:tt)*) => {
         match unsafe { &mut $crate::serial::SERIAL } {
             Some(serial) => ufmt::uwriteln!(serial, $($arg)*).void_unwrap(),
-            None => panic!(),
+            None => (),
         };
     };
 }

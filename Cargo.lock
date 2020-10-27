@@ -72,6 +72,7 @@ dependencies = [
  "atmega2560-hal",
  "avr-hal-generic",
  "lib-io",
+ "lib-io-avr",
  "ufmt",
 ]
 
@@ -94,10 +95,15 @@ dependencies = [
 [[package]]
 name = "lib-io"
 version = "0.1.0"
+
+[[package]]
+name = "lib-io-avr"
+version = "0.1.0"
 dependencies = [
  "arduino-mega2560",
  "atmega2560-hal",
  "avr-hal-generic",
+ "lib-io",
 ]
 
 [[package]]

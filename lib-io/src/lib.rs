@@ -1,7 +1,5 @@
 #![no_std]
 
-pub mod impl_avr;
-
 pub type Result<A> = core::result::Result<A, &'static str>;
 
 const TOO_LONG_ERROR: &str = "Length should be between 1 and 256";
@@ -9,7 +7,7 @@ const TOO_LONG_ERROR: &str = "Length should be between 1 and 256";
 const RECEIVED_UNEXPECTED_BYTE_ERROR: &str = "Received unexpected byte";
 
 pub trait ReadByte {
-    type IntoSend: SendByte<IntoRead=Self>;
+    type IntoSend: SendByte<IntoRead = Self>;
 
     fn read(&self) -> u8;
 
@@ -17,7 +15,7 @@ pub trait ReadByte {
 }
 
 pub trait SendByte {
-    type IntoRead: ReadByte<IntoSend=Self>;
+    type IntoRead: ReadByte<IntoSend = Self>;
 
     fn send(&mut self, byte: u8);
 
@@ -278,8 +276,6 @@ where
             ..
         } = self;
 
-        let result = with_handshake.with_read_handshake(|| read_byte.read());
-
-        result
+        with_handshake.with_read_handshake(|| read_byte.read())
     }
 }
