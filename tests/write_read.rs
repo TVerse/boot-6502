@@ -5,7 +5,6 @@ use lib_io::*;
 #[test]
 fn test_write_read() -> Result<()> {
     let pins = initialize()?;
-    Ok(())
     run(pins).map(|_| ())
 }
 

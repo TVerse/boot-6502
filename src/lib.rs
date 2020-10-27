@@ -1,23 +1,7 @@
-use gpio_cdev::{Chip, Line, LineHandle, LineRequestFlags};
+use gpio_cdev::Chip;
 use lib_io::*;
 use lib_io_rpi::pins::*;
 use lib_io_rpi::*;
-use std::marker::PhantomData;
-
-fn get_pin(
-    chip: &mut Chip,
-    flags: LineRequestFlags,
-    number: u32,
-    description: &'static str,
-) -> Result<(Line, LineHandle)> {
-    let line = chip
-        .get_line(number)
-        .map_err(|e| IoError::Other(Box::new(e)))?;
-    let line_handle = line
-        .request(flags, 0, description)
-        .map_err(|e| IoError::Other(Box::new(e)))?;
-    Ok((line, line_handle))
-}
 
 pub fn initialize() -> Result<Pins<Handshake, Write, Delay>> {
     let mut delay = Delay;
@@ -25,93 +9,28 @@ pub fn initialize() -> Result<Pins<Handshake, Write, Delay>> {
     let c = &mut chip;
 
     let reset = 13;
-    let mut reset = {
-        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, reset, "reset")?;
-        Reset { line, handle }
-    };
+    let mut reset = Reset::new(c, reset)?;
 
     let ca1 = 26;
-    let mut outgoing_handshake = {
-        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, ca1, "ca1")?;
-        OutgoingHandshake { line, handle }
-    };
+    let mut outgoing_handshake = OutgoingHandshake::new(c, ca1)?;
     let ca2 = 19;
-    let incoming_handshake = {
-        let (line, handle) = get_pin(c, LineRequestFlags::INPUT, ca2, "ca2")?;
-        IncomingHandshake { line, handle }
-    };
+    let incoming_handshake = IncomingHandshake::new(c, ca2)?;
     let pa0 = 21;
-    let p0 = {
-        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa0, "p0")?;
-        P0 {
-            line,
-            handle,
-            _pd: PhantomData,
-        }
-    };
+    let p0 = P0::new(c, pa0)?;
     let pa1 = 20;
-    let p1 = {
-        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa1, "p1")?;
-        P1 {
-            line,
-            handle,
-            _pd: PhantomData,
-        }
-    };
+    let p1 = P1::new(c, pa1)?;
     let pa2 = 6;
-    let p2 = {
-        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa2, "p2")?;
-        P2 {
-            line,
-            handle,
-            _pd: PhantomData,
-        }
-    };
+    let p2 = P2::new(c, pa2)?;
     let pa3 = 5;
-    let p3 = {
-        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa3, "p3")?;
-        P3 {
-            line,
-            handle,
-            _pd: PhantomData,
-        }
-    };
+    let p3 = P3::new(c, pa3)?;
     let pa4 = 22;
-    let p4 = {
-        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa4, "p4")?;
-        P4 {
-            line,
-            handle,
-            _pd: PhantomData,
-        }
-    };
+    let p4 = P4::new(c, pa4)?;
     let pa5 = 27;
-    let p5 = {
-        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa5, "p5")?;
-        P5 {
-            line,
-            handle,
-            _pd: PhantomData,
-        }
-    };
+    let p5 = P5::new(c, pa5)?;
     let pa6 = 17;
-    let p6 = {
-        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa6, "p6")?;
-        P6 {
-            line,
-            handle,
-            _pd: PhantomData,
-        }
-    };
+    let p6 = P6::new(c, pa6)?;
     let pa7 = 4;
-    let p7 = {
-        let (line, handle) = get_pin(c, LineRequestFlags::OUTPUT, pa7, "p7")?;
-        P7 {
-            line,
-            handle,
-            _pd: PhantomData,
-        }
-    };
+    let p7 = P7::new(c, pa7)?;
 
     outgoing_handshake.set_high()?;
 
