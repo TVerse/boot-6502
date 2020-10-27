@@ -21,6 +21,7 @@ handshakes: .byte ACK, ACK, ACKDATA, ACK, ACK
 unknown_command_error: .asciiz "Unknown command!"
 
 dispatch:
+  DEBUG_CHAR "D"
   LDA transfer_state + TransferState.next
   BEQ .next_receive_command
   CMP #EXPECT_NEXT_ADDR_LOW
@@ -64,6 +65,7 @@ set_input:
   RTS
 
 init_comms:
+  DEBUG_CHAR "I"
   LDA PCR
   AND #%11111001
   ORA #%00001000
@@ -79,6 +81,7 @@ init_comms:
   RTS
 
 receive_command:
+  DEBUG_CHAR "C"
   LDA PORTA
   STA transfer_state + TransferState.command
   BEQ .display_string

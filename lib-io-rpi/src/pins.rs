@@ -176,6 +176,7 @@ impl TryFrom<P0<Output>> for P0<Input> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P0<Output>) -> std::result::Result<Self, Self::Error> {
+        println!("P0");
         let output_handle = value.line.request(LineRequestFlags::INPUT, 0, "P0_in")?;
         Ok(Self {
             line: value.line,
@@ -188,6 +189,7 @@ impl TryFrom<P1<Output>> for P1<Input> {
     type Error = gpio_cdev::Error;
 
     fn try_from(value: P1<Output>) -> std::result::Result<Self, Self::Error> {
+        println!("P1");
         let output_handle = value.line.request(LineRequestFlags::INPUT, 0, "P0_in")?;
         Ok(Self {
             line: value.line,

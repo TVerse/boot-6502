@@ -183,6 +183,7 @@ where
     D: DelayMs,
 {
     pub fn execute(mut self, command: &mut Command) -> Result<Pins<WH, S, D>> {
+        println!("Sending");
         self.send_signature(command)?;
         command
             .address()

@@ -97,6 +97,7 @@ impl SendByte for Write {
     type IntoRead = Read;
 
     fn send(&mut self, byte: u8) -> Result<()> {
+        println!("Sending {}", byte);
         if byte & 0b00000001 != 0 {
             self.p0.set_high()?;
         } else {
@@ -141,6 +142,7 @@ impl SendByte for Write {
     }
 
     fn into_read(self) -> Result<Self::IntoRead> {
+        println!("Switching");
         Ok(Self::IntoRead {
             p0: P0::try_from(self.p0).map_err(|e| IoError::Other(Box::new(e)))?,
             p1: P1::try_from(self.p1).map_err(|e| IoError::Other(Box::new(e)))?,
@@ -162,14 +164,18 @@ pub struct Handshake {
 
 impl WithHandshake for Handshake {
     fn with_write_handshake<F: FnOnce() -> Result<()>>(&mut self, f: F) -> Result<()> {
+        println!("Prepping data");
         f()?;
 
+        println!("Low HS");
         self.outgoing_handshake.set_low()?;
 
         self.delay.delay_us(2); // At least 1 6502 clock cycle @ 1MHz
 
+        println!("High HS");
         self.outgoing_handshake.set_high()?;
 
+        println!("Waiting for response...");
         while self.incoming_handshake.is_high()? {}
 
         Ok(())
