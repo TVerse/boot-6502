@@ -1,7 +1,5 @@
   .include base.s
 
-;DEBUG=1
-
   .org ROM_START_ADDR
 
 reset:
