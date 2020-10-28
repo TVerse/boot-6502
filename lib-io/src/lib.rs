@@ -5,10 +5,10 @@ pub type Result<A> = std::result::Result<A, IoError>;
 
 #[derive(Error, Debug)]
 pub enum IoError {
-    #[error("Length should be between 1 and 256")]
-    TooLong,
-    #[error("Received unexpected byte")]
-    ReceivedUnexpectedbyte,
+    #[error("Length should be between 1 and 256, found {length}")]
+    TooLong { length: usize },
+    #[error("Received unexpected byte: expected {expected}, found {found}")]
+    ReceivedUnexpectedbyte { expected: u8, found: u8 },
     #[error(transparent)]
     Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
@@ -51,7 +51,7 @@ impl AdjustedLength {
             // Wrap 256 to 0
             Ok(AdjustedLength(len as u8))
         } else {
-            Err(TooLong)
+            Err(TooLong { length: len })
         }
     }
 }
@@ -278,8 +278,12 @@ where
         // Need a certain delay here for handshakes to switch properly?
         // At least 2ms? Is there an extra WAI somewhere?
         self.delay.delay_ms(2);
-        if self.receive_byte()? != command.ack_byte() {
-            Err(ReceivedUnexpectedbyte)
+        let b = self.receive_byte()?;
+        if b != command.ack_byte() {
+            Err(ReceivedUnexpectedbyte {
+                expected: command.ack_byte(),
+                found: b,
+            })
         } else {
             command
                 .receivable_data()
