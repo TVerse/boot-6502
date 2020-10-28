@@ -183,7 +183,6 @@ where
     D: DelayMs,
 {
     pub fn execute(mut self, command: &mut Command) -> Result<Pins<WH, S, D>> {
-        println!("Sending");
         self.send_signature(command)?;
         command
             .address()
@@ -240,7 +239,6 @@ where
     }
 
     fn send_byte(&mut self, data: u8) -> Result<()> {
-        //serial_println!("Sending: {}", data);
         let Self {
             with_handshake,
             send_byte,
@@ -271,7 +269,7 @@ where
     fn execute(mut self, command: &mut Command) -> Result<Self> {
         // Need a certain delay here for handshakes to switch properly?
         // At least 2ms? Is there an extra WAI somewhere?
-        self.delay.delay_ms(10);
+        self.delay.delay_ms(2);
         if self.receive_byte()? != command.ack_byte() {
             Err(ReceivedUnexpectedbyte)
         } else {

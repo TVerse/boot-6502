@@ -186,7 +186,9 @@ impl WithHandshake for Handshake {
 
         self.outgoing_handshake.set_high()?;
 
-        while self.incoming_handshake.is_low()? {}
+        // TODO do I not need this?
+        //println!("while low");
+        //while self.incoming_handshake.is_low()? {}
 
         Ok(result)
     }

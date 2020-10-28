@@ -14,7 +14,7 @@ fn run<WH: WithHandshake, S: SendByte, D: DelayMs>(pins: Pins<WH, S, D>) -> Resu
     };
     let pins = pins.execute(&mut display_string)?;
 
-    let addresses = (0x200u16..0x3d00).step_by(0xFED);
+    let addresses = (0x200u16..0x3d00).step_by(0xED);
     let mut data: [u8; 256] = [0; 256];
     for (i, d) in data.iter_mut().enumerate() {
         *d = i as u8;
@@ -23,7 +23,7 @@ fn run<WH: WithHandshake, S: SendByte, D: DelayMs>(pins: Pins<WH, S, D>) -> Resu
     let mut pins = pins;
     for address in addresses {
         println!("Address: {:#X}", address);
-        let sizes = (1..257).step_by(47);
+        let sizes = (1..257).step_by(27);
         for size in sizes {
             let input_data = &data[0..size];
             let mut write_command = Command::WriteData {
