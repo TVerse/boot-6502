@@ -137,7 +137,7 @@ impl<'a> Command<'a> {
         }
     }
 
-    fn address(&self) -> Option<u16> {
+    pub fn address(&self) -> Option<u16> {
         match self {
             Command::DisplayString { .. } => None,
             Command::WriteData { address, .. } => Some(*address),

@@ -52,11 +52,12 @@ pub fn initialize() -> Result<Pins<Handshake, Write, Delay>> {
 static PROGRAM: &[u8] = include_bytes!("../6502/selfcontained_test.bin");
 
 pub fn prepare_program() -> Vec<Command<'static>> {
+    assert!(PROGRAM.len() % 256 == 0);
     PROGRAM
         .chunks(256)
         .enumerate()
-        .map(|(i, chunk)|Command::WriteData {
-            address: (0x0300 + 0x100*i) as u16,
+        .map(|(i, chunk)| Command::WriteData {
+            address: (0x0300 + 0x100 * i) as u16,
             data: LengthLimitedSlice::new(chunk).unwrap(),
         })
         .collect()
