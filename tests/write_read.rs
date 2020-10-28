@@ -2,6 +2,9 @@ use boot_6502::initialize;
 
 use lib_io::*;
 
+use rand;
+use rand::prelude::*;
+
 #[test]
 fn test_write_read() -> Result<()> {
     let pins = initialize()?;
@@ -9,22 +12,23 @@ fn test_write_read() -> Result<()> {
 }
 
 fn run<WH: WithHandshake, S: SendByte, D: DelayMs>(pins: Pins<WH, S, D>) -> Result<Pins<WH, S, D>> {
+    let mut rng = rand::thread_rng();
     let mut display_string = Command::DisplayString {
         data: LengthLimitedSlice::new("Starting.".as_bytes())?,
     };
     let pins = pins.execute(&mut display_string)?;
 
     let addresses = (0x200u16..0x3d00).step_by(0xED);
-    let mut data: [u8; 256] = [0; 256];
-    for (i, d) in data.iter_mut().enumerate() {
-        *d = i as u8;
-    }
     let mut misses: usize = 0;
     let mut pins = pins;
     for address in addresses {
         println!("Address: {:#X}", address);
         let sizes = (1..257).step_by(27);
         for size in sizes {
+            let mut data: [u8; 256] = [0; 256];
+            for d in data.iter_mut() {
+                *d = rng.gen();
+            }
             let input_data = &data[0..size];
             let mut write_command = Command::WriteData {
                 data: LengthLimitedSlice::new(input_data)?,
