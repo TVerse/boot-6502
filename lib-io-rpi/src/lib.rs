@@ -1,10 +1,10 @@
-use lib_io::{DelayMs, DelayUs, IoError, ReadByte, SendByte, WithHandshake};
-
-use lib_io::Result;
-use pins::*;
 use std::convert::TryFrom;
 use std::thread;
 use std::time;
+
+use lib_io::Result;
+use lib_io::{DelayMs, DelayUs, IoError, ReadByte, SendByte, WithHandshake};
+use pins::*;
 
 pub mod pins;
 
@@ -26,14 +26,14 @@ impl DelayUs for Delay {
 }
 
 pub struct Read {
-    pub p0: P0<Input>,
-    pub p1: P1<Input>,
-    pub p2: P2<Input>,
-    pub p3: P3<Input>,
-    pub p4: P4<Input>,
-    pub p5: P5<Input>,
-    pub p6: P6<Input>,
-    pub p7: P7<Input>,
+    p0: P0<Input>,
+    p1: P1<Input>,
+    p2: P2<Input>,
+    p3: P3<Input>,
+    p4: P4<Input>,
+    p5: P5<Input>,
+    p6: P6<Input>,
+    p7: P7<Input>,
 }
 
 impl ReadByte for Read {
@@ -83,14 +83,38 @@ impl ReadByte for Read {
 }
 
 pub struct Write {
-    pub p0: P0<Output>,
-    pub p1: P1<Output>,
-    pub p2: P2<Output>,
-    pub p3: P3<Output>,
-    pub p4: P4<Output>,
-    pub p5: P5<Output>,
-    pub p6: P6<Output>,
-    pub p7: P7<Output>,
+    p0: P0<Output>,
+    p1: P1<Output>,
+    p2: P2<Output>,
+    p3: P3<Output>,
+    p4: P4<Output>,
+    p5: P5<Output>,
+    p6: P6<Output>,
+    p7: P7<Output>,
+}
+
+impl Write {
+    pub fn new(
+        p0: P0<Output>,
+        p1: P1<Output>,
+        p2: P2<Output>,
+        p3: P3<Output>,
+        p4: P4<Output>,
+        p5: P5<Output>,
+        p6: P6<Output>,
+        p7: P7<Output>,
+    ) -> Self {
+        Self {
+            p0,
+            p1,
+            p2,
+            p3,
+            p4,
+            p5,
+            p6,
+            p7,
+        }
+    }
 }
 
 impl SendByte for Write {
@@ -155,9 +179,23 @@ impl SendByte for Write {
 }
 
 pub struct Handshake {
-    pub incoming_handshake: IncomingHandshake,
-    pub outgoing_handshake: OutgoingHandshake,
-    pub delay: Delay,
+    incoming_handshake: IncomingHandshake,
+    outgoing_handshake: OutgoingHandshake,
+    delay: Delay,
+}
+
+impl Handshake {
+    pub fn new(
+        incoming_handshake: IncomingHandshake,
+        outgoing_handshake: OutgoingHandshake,
+        delay: Delay,
+    ) -> Self {
+        Self {
+            incoming_handshake,
+            outgoing_handshake,
+            delay,
+        }
+    }
 }
 
 impl WithHandshake for Handshake {

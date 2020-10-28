@@ -171,9 +171,9 @@ where
     S: SendByte,
     D: DelayMs,
 {
-    pub with_handshake: WH,
-    pub send_byte: S,
-    pub delay: D,
+    with_handshake: WH,
+    send_byte: S,
+    delay: D,
 }
 
 impl<WH, S, D> Pins<WH, S, D>
@@ -182,6 +182,14 @@ where
     S: SendByte,
     D: DelayMs,
 {
+    pub fn new(with_handshake: WH, send_byte: S, delay: D) -> Self {
+        Self {
+            with_handshake,
+            send_byte,
+            delay,
+        }
+    }
+
     pub fn execute(mut self, command: &mut Command) -> Result<Pins<WH, S, D>> {
         self.send_signature(command)?;
         command

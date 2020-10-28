@@ -5,6 +5,7 @@ RW = %00000010
 RS = %00000001
 
   .org $0300
+  .byte 0
 reset:
   LDA #"H"
   JSR print_char
@@ -12,6 +13,8 @@ reset:
   JSR print_char
   LDA #"!"
   JSR print_char
+  LDA #$AA
+  STA $0300
 loop:
   WAI
   JMP loop

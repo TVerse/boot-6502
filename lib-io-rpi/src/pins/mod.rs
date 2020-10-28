@@ -1,5 +1,5 @@
-use lib_io::Result;
 use gpio_cdev::LineRequestFlags;
+use lib_io::Result;
 
 #[macro_use]
 mod generator_macros;
