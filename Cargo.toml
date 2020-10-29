@@ -9,6 +9,8 @@ lib-io = { path = "lib-io" }
 lib-io-rpi = { path = "lib-io-rpi" }
 gpio-cdev = "0.4"
 itertools = "0.9.0"
+tempfile = "3.1.0"
+anyhow = "1.0.33"
 
 [dev-dependencies]
 rand = "0.7.3"

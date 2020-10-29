@@ -49,11 +49,8 @@ pub fn initialize() -> Result<Pins<Handshake, Write, Delay>> {
     Ok(Pins::new(with_handshake, write, delay))
 }
 
-static PROGRAM: &[u8] = include_bytes!("../6502/selfcontained_test.bin");
-
-pub fn prepare_program() -> Vec<Command<'static>> {
-    assert!(PROGRAM.len() % 256 == 0);
-    PROGRAM
+pub fn prepare_program(program: &[u8]) -> Vec<Command> {
+    program
         .chunks(256)
         .enumerate()
         .map(|(i, chunk)| Command::WriteData {
