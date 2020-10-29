@@ -1,6 +1,6 @@
 /target
 .idea
-*.bin
+6502/*.bin
 *.lst
 */target
 */Cargo.lock
