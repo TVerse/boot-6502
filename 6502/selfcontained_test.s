@@ -15,9 +15,7 @@ reset:
   JSR print_char
   LDA #$AA
   STA $0300
-loop:
-  WAI
-  JMP loop
+  RTS
 
 wait_lcd_ready:
   PHA

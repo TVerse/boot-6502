@@ -1,7 +1,6 @@
 use boot_6502::*;
 
 use lib_io::*;
-use lib_io_rpi::*;
 
 fn main() -> Result<()> {
     let pins = initialize()?;
@@ -20,7 +19,7 @@ fn run<WH: WithHandshake, S: SendByte, D: DelayMs>(pins: Pins<WH, S, D>) -> Resu
     commands.truncate(59);
     assert!(commands.len() == 59);
     let pins = commands.iter_mut().try_fold(pins, |p, c| {
-        println!("{:X}", c.address().unwrap());
+        println!("{:#04X}", c.address().unwrap());
         let res = p.execute(c);
         println!("done");
         res
@@ -34,14 +33,10 @@ fn run<WH: WithHandshake, S: SendByte, D: DelayMs>(pins: Pins<WH, S, D>) -> Resu
     // let pins = pins.execute(&mut set_ready)?;
 
     // println!("Set ready done");
-
-    let mut jsr = Command::JSR { address: 0x0300 };
-
+    //
+    println!("Jumping");
+    let mut jsr = Command::JSR { address: 0x0301 };
     let pins = pins.execute(&mut jsr)?;
-
-    println!("Running");
-
-    Delay.delay_ms(2000);
 
     let mut buf = [1; 1];
     let mut read_data = Command::ReadData {

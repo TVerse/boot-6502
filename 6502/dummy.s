@@ -16,12 +16,3 @@ irq:
   PLA
   RTI
 
-  .org $E000
-  LDA #$FF
-  STA $0300
-  LITERAL str
-  JMP print_null_terminated_string_stack
-  
-str:
-  .asciiz "JSR"
-
