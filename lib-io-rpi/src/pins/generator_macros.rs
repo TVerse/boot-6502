@@ -13,10 +13,7 @@ macro_rules! input_pin {
                 let handle = line
                     .request(Input::flag(), 0, stringify!($pin))
                     .map_err(|e| lib_io::IoError::Other(Box::new(e)))?;
-                Ok($pin {
-                    line,
-                    handle,
-                })
+                Ok($pin { line, handle })
             }
         }
 
@@ -28,12 +25,11 @@ macro_rules! input_pin {
                     .map_err(|e| lib_io::IoError::Other(Box::new(e)))
             }
         }
-    }
+    };
 }
 
 macro_rules! switchable_pin {
     ($pin:ident) => {
-
         pub struct $pin<A: Selector> {
             pub line: gpio_cdev::Line,
             pub handle: gpio_cdev::LineHandle,
@@ -106,7 +102,7 @@ macro_rules! switchable_pin {
                     .map_err(|e| lib_io::IoError::Other(Box::new(e)))
             }
         }
-    }
+    };
 }
 
 macro_rules! output_pin {
@@ -124,10 +120,7 @@ macro_rules! output_pin {
                 let handle = line
                     .request(Output::flag(), 0, stringify!($pin))
                     .map_err(|e| lib_io::IoError::Other(Box::new(e)))?;
-                Ok($pin {
-                    line,
-                    handle,
-                })
+                Ok($pin { line, handle })
             }
         }
 
@@ -144,5 +137,5 @@ macro_rules! output_pin {
                     .map_err(|e| lib_io::IoError::Other(Box::new(e)))
             }
         }
-    }
+    };
 }

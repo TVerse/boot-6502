@@ -43,25 +43,19 @@ pub fn initialize() -> Result<Pins<Handshake, Write, Delay>> {
     delay.delay_ms(2000);
     while incoming_handshake.is_low()? {}
 
-    let with_handshake = Handshake {
-        incoming_handshake,
-        outgoing_handshake,
-        delay,
-    };
-    let write = Write {
-        p0,
-        p1,
-        p2,
-        p3,
-        p4,
-        p5,
-        p6,
-        p7,
-    };
+    let with_handshake = Handshake::new(incoming_handshake, outgoing_handshake, delay);
+    let write = Write::new(p0, p1, p2, p3, p4, p5, p6, p7);
 
-    Ok(Pins {
-        with_handshake,
-        send_byte: write,
-        delay,
-    })
+    Ok(Pins::new(with_handshake, write, delay))
+}
+
+pub fn prepare_program(program: &[u8]) -> Vec<Command> {
+    program
+        .chunks(256)
+        .enumerate()
+        .map(|(i, chunk)| Command::WriteData {
+            address: (0x0300 + 0x100 * i) as u16,
+            data: LengthLimitedSlice::new(chunk).unwrap(),
+        })
+        .collect()
 }
