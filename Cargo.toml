@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 lib-io = { path = "lib-io" }
 lib-io-rpi = { path = "lib-io-rpi" }
+sfota = { path = "../sfota" }
 gpio-cdev = "0.4.0"
 itertools = "0.9.0"
 tempfile = "3.1.0"
