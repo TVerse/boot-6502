@@ -3,12 +3,12 @@ use boot_6502::*;
 use lib_io::*;
 
 #[test]
-fn test_jsr() -> Result<()> {
+fn test_sfota() -> Result<()> {
     let pins = initialize()?;
     run(pins).map(|_| ())
 }
 
-static PROGRAM: &str = "  STA #$0300\n  RTS\n";
+static PROGRAM: &str = "  STZ #$0300\n  RTS\n";
 
 fn run<WH: WithHandshake, S: SendByte, D: DelayMs>(pins: Pins<WH, S, D>) -> Result<Pins<WH, S, D>> {
     let mut display_string = Command::DisplayString {
