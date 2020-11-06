@@ -28,11 +28,11 @@ fn run<WH: WithHandshake, S: SendByte, D: DelayMs>(pins: Pins<WH, S, D>) -> Resu
 
     let pins = pins.execute(&mut read)?;
 
-    if buf[0] != 0 {
-        panic!("Got {} but expected 0", buf[0]);
+    if buf[0] != 0x9C {
+        panic!("Got {} but expected 0x9C", buf[0]);
     }
 
-    let mut jsr = Command::JSR { address: 0x0301 };
+    let mut jsr = Command::JSR { address: 0x0300 };
 
     let pins = pins.execute(&mut jsr)?.execute(&mut jsr)?;
 
@@ -42,8 +42,8 @@ fn run<WH: WithHandshake, S: SendByte, D: DelayMs>(pins: Pins<WH, S, D>) -> Resu
     };
     let pins = pins.execute(&mut read)?;
 
-    if buf[0] != 0xAA {
-        panic!("Got {} but expected 0xAA", buf[0]);
+    if buf[0] != 0x00 {
+        panic!("Got {} but expected 0x00", buf[0]);
     }
 
     let mut display_string = Command::DisplayString {
