@@ -9,10 +9,10 @@ loop:
   WAI
   JMP loop
 
+hello_world:
+  .asciiz "Hi!"
+
 nmi:
 irq:
-  PHA
-  JSR read_buttons
-  PLA
   RTI
 

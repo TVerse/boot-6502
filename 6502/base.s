@@ -4,7 +4,6 @@
   .include stack.s
   .include peripherals.s
   .include debug.s
-  .include comms.s
 
   ; Start 5ms clock, 5000 cycles @ 1MHz
   ; 2 cycles for starting the interrupt = 4998 wait = $1368
@@ -23,50 +22,7 @@
   STA IER
   .endmacro
 
-  .macro INITIALIZE_LCD
-  ; Reset
-  LITERAL_8BIT 25
-  JSR delay
-  LDA #%00110000
-  JSR lcd_send_upper_nibble
-  LITERAL_8BIT 5
-  JSR delay
-  LDA #%00110000
-  JSR lcd_send_upper_nibble
-  LITERAL_8BIT 5
-  JSR delay
-  LDA #%00110000
-  JSR lcd_send_upper_nibble
-  LITERAL_8BIT 5
-  JSR delay
-  ; Set 4bit interface
-  LDA #%00100000
-  JSR lcd_send_upper_nibble
-  LITERAL_8BIT 5
-  JSR delay
-
-  ; Software initialize
-  LDA #%00101000
-  JSR lcd_instruction
-  LDA #%00001000
-  JSR lcd_instruction
-  LDA #%00000001
-  JSR lcd_instruction
-
-  LITERAL_8BIT 200
-  JSR delay
-
-  LDA #%00000110
-  JSR lcd_instruction
-  .endmacro
-
 reset_base:
-  ; Disable and stop interrupts
-  SEI
-  LDA #%01111111
-  STA IER
-  STA IFR
-
   ; Reset decimal flag
   CLD
 
@@ -87,10 +43,6 @@ reset_base:
   STZ PORTA
   STZ PORTB
 
-  ; Reset counter
-  STZ five_millisecond_counter_addr
-  STZ five_millisecond_counter_addr + 1
-
   ; Put vectors in known state
   LDA #<rti
   STA program_nmi
@@ -103,12 +55,14 @@ reset_base:
   LDA #>loop_base
   STA program_reset + 1
 
-  ; Program not loaded
-  STZ program_load_done
-
   ; Don't send interrupt to program yet
   LDA $FF
   STA initialization_done
+  STA program_reset
+
+  ; Reset counter
+  STZ five_millisecond_counter_addr
+  STZ five_millisecond_counter_addr + 1
 
   ENABLE_TIMER
 
@@ -131,15 +85,8 @@ reset_base:
   LDA #%00000001
   JSR lcd_instruction
 
-  JSR set_input
-  JSR init_comms
-
-  .wait_for_program_loaded:
-    WAI
-    LDA program_load_done
-    BEQ .wait_for_program_loaded
-  
-  JMP (program_reset)
+  ; JMP (program_reset)
+  JMP reset
   
 nmi_base:
   JMP (program_nmi)
@@ -150,13 +97,12 @@ irq_base:
   BCC .program_irq ; Not the VIA
   ASL ; T1
   BCS .timer
-  ASL ; T2
-  ASL ; CB1
-  ASL ; CB2
-  ASL ; Shift
-  ASL ; CA1
-  BCS .comms
-  ASL ; CA2
+  ; ASL ; T2
+  ; ASL ; CB1
+  ; ASL ; CB2
+  ; ASL ; Shift
+  ; ASL ; CA1
+  ; ASL ; CA2
   BRA .program_irq
   .timer:
     BIT T1CL
@@ -165,8 +111,6 @@ irq_base:
     INC five_millisecond_counter_addr + 1
   .no_overflow:
     BRA .program_irq
-  .comms:
-    JSR dispatch
   .program_irq:
     PLA
     BIT initialization_done
@@ -208,13 +152,13 @@ delay:
 error:
   SEI
   LDA #%00000001
-  ;JSR lcd_instruction
+  JSR lcd_instruction
   LITERAL error_message
   JSR print_null_terminated_string_stack
   LDA 0,X
   ORA 1,X
   BEQ .loop
-  .has_message:
+  ; .has_message:
     LDA #%11000000 ; Jump to second row
     JSR lcd_instruction
     JSR print_null_terminated_string_stack

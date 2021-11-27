@@ -25,40 +25,16 @@ RS = %00000001
 DEFAULT_DDRA = %00000000
 DEFAULT_DDRB = %01111111
 
-  .struct TransferState
-done .byte 0
-command .byte 0
-next .byte 0
-length .byte 0
-jmp .byte 0
-data_pointer .word 0
-current_byte_index .byte 0
-data_taken_received .byte 0
-  .endstruct
-
-  .dsect
-  .org $3EFA
-program_nmi: .word 0
-  .org $3EFC
-program_reset: .word 0
-  .org $3EFE
-program_irq: .word 0
-
-  .org $3F00
-transfer_state: TransferState
-transferred_string: .blk 128
-
-  .org $3FF0
-five_millisecond_counter_addr: .word 0
-; 8 bit, positive or zero if done, negative if not. To be set to zero by user. Used in base irq routine, functions as user-only cli.
-initialization_done: .byte 0
-button_state_addr: .byte 0
-  .org $3FFF
-program_load_done: .byte 0
-  .dend
-
-
-SOFTWARE_STACK_START = $F5
+SOFTWARE_STACK_START = $F5 ; Grows down
 
 N = SOFTWARE_STACK_START + 1 ; 8 bytes
 N_IRQ = N + 8; 2 bytes
+
+program_nmi = $3FFA
+program_reset = $3FFC
+program_irq = $3FFE
+
+initialization_done = $0200 ; 1 byte
+; 1 byte free
+five_millisecond_counter_addr = $0202 ; 2 bytes
+

@@ -1,3 +1,41 @@
+; Requires a 5ms timer to be running
+  .macro INITIALIZE_LCD
+  ; Reset
+  LITERAL_8BIT 25
+  JSR delay
+  LDA #%00110000
+  JSR lcd_send_upper_nibble
+  LITERAL_8BIT 5
+  JSR delay
+  LDA #%00110000
+  JSR lcd_send_upper_nibble
+  LITERAL_8BIT 5
+  JSR delay
+  LDA #%00110000
+  JSR lcd_send_upper_nibble
+  LITERAL_8BIT 5
+  JSR delay
+  ; Set 4bit interface
+  LDA #%00100000
+  JSR lcd_send_upper_nibble
+  LITERAL_8BIT 5
+  JSR delay
+
+  ; Software initialize
+  LDA #%00101000
+  JSR lcd_instruction
+  LDA #%00001000
+  JSR lcd_instruction
+  LDA #%00000001
+  JSR lcd_instruction
+
+  LITERAL_8BIT 200
+  JSR delay
+
+  LDA #%00000110
+  JSR lcd_instruction
+  .endmacro
+
 lcd_instruction:
   PHA
   JSR lcd_send_upper_nibble
@@ -106,43 +144,3 @@ print_length_string_stack:
   POP
   RTS
 
-; Returns button state in A and button_state_addr
-; 0000rldu
-; Only highest priority bit will be set
-; Priority: udlr
-read_buttons:
-  LDA #DEFAULT_DDRB
-  STA DDRB
-  .up:
-    LDA #%01110000
-    STA PORTB
-    BIT PORTB
-    BMI .down
-    LDA #%00000001
-    BRA .done
-  .down:
-    LDA #%01101000
-    STA PORTB
-    BIT PORTB
-    BMI .left
-    LDA #%00000010
-    BRA .done
-  .left:
-    LDA #%01011000
-    STA PORTB
-    BIT PORTB
-    BMI .right
-    LDA #%00000100
-    BRA .done
-  .right:
-    LDA #%00111000
-    STA PORTB
-    BIT PORTB
-    BMI .nothing
-    LDA #%00001000
-    BRA .done
-  .nothing:
-    LDA #0
-  .done:
-    STA button_state_addr
-    RTS
