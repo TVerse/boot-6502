@@ -16,13 +16,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - name: "Install arm target"
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: armv7-unknown-linux-gnueabihf
           override: true
-      - uses: actions-rs/cargo@v1
+      - name: "Build"
+        uses: actions-rs/cargo@v1
         with:
           use-cross: true
           command: build
+          args: --target armv7-unknown-linux-gnueabihf
+      - name: "Test"
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: test
           args: --target armv7-unknown-linux-gnueabihf
