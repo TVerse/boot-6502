@@ -1,5 +1,2 @@
 [build]
 target = "armv7-unknown-linux-gnueabihf"
-
-[alias]
-test-windows = "test --target x86_64-pc-windows-msvc"

@@ -1,9 +1,17 @@
 use anyhow::Result;
 
-use rppal::gpio::Gpio;
+use rppal::uart::{Parity, Uart};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::time::Duration;
+use boot_6502::get_default_uart;
+
+const DEVICE: &'static str = "/dev/???";
+const BAUD_RATE: u32 = 9600;
+const PARITY: Parity = Parity::None;
+const DATA_BITS: u8 = 8;
+const STOP_BITS: u8 = 1;
 
 fn main() -> Result<()> {
     println!("Hello World!");
@@ -13,17 +21,13 @@ fn main() -> Result<()> {
         println!("Exiting...");
         e.store(true, Ordering::SeqCst)
     })?;
-    let gpio = Gpio::new()?;
-    let mut pin = gpio.get(13)?.into_output();
-    loop {
-        pin.set_high();
-        std::thread::sleep(std::time::Duration::from_millis(500));
-        pin.set_low();
-        std::thread::sleep(std::time::Duration::from_millis(500));
-        if exit.load(Ordering::SeqCst) {
-            break;
-        }
-    }
+    let mut uart = get_default_uart();
+
+    println!("Sending...");
+    uart.write(b"Hi!")?;
+    println!("Sent!");
+
+    std::thread::sleep(Duration::from_millis(500));
 
     Ok(())
 }

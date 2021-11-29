@@ -1,24 +1,26 @@
+LCD_CLEAR = %00001100
+
 ; Requires a 5ms timer to be running
   .macro INITIALIZE_LCD
   ; Reset
-  LITERAL_8BIT 25
+  LITERAL_8BIT 13
   JSR delay
   LDA #%00110000
   JSR lcd_send_upper_nibble
-  LITERAL_8BIT 5
+  LITERAL_8BIT 3
   JSR delay
   LDA #%00110000
   JSR lcd_send_upper_nibble
-  LITERAL_8BIT 5
+  LITERAL_8BIT 3
   JSR delay
   LDA #%00110000
   JSR lcd_send_upper_nibble
-  LITERAL_8BIT 5
+  LITERAL_8BIT 3
   JSR delay
   ; Set 4bit interface
   LDA #%00100000
   JSR lcd_send_upper_nibble
-  LITERAL_8BIT 5
+  LITERAL_8BIT 3
   JSR delay
 
   ; Software initialize
@@ -29,7 +31,7 @@
   LDA #%00000001
   JSR lcd_instruction
 
-  LITERAL_8BIT 200
+  LITERAL_8BIT 100
   JSR delay
 
   LDA #%00000110

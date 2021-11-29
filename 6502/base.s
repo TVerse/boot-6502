@@ -8,9 +8,9 @@
   ; Start 5ms clock, 5000 cycles @ 1MHz
   ; 2 cycles for starting the interrupt = 4998 wait = $1368
   .macro ENABLE_TIMER
-  LDA #$86
+  LDA #$0E
   STA T1CL
-  LDA #$13
+  LDA #$27
   STA T1CH
 
   LDA ACR
@@ -61,8 +61,8 @@ reset_base:
   STA program_reset
 
   ; Reset counter
-  STZ five_millisecond_counter_addr
-  STZ five_millisecond_counter_addr + 1
+  STZ ten_millisecond_counter_addr
+  STZ ten_millisecond_counter_addr + 1
 
   ENABLE_TIMER
 
@@ -73,13 +73,13 @@ reset_base:
   ; 4-bit, 2 line, 5x8 characters, move right
   INITIALIZE_LCD
 
-  LDA #%00001100
+  LDA #LCD_CLEAR
   JSR lcd_instruction
 
   LITERAL initialized_base
   JSR print_null_terminated_string_stack
 
-  LITERAL 100
+  LITERAL 50
   JSR delay
 
   LDA #%00000001

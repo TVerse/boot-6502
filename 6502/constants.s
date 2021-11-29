@@ -36,5 +36,5 @@ program_irq = $3FFE
 
 initialization_done = $0200 ; 1 byte
 ; 1 byte free
-five_millisecond_counter_addr = $0202 ; 2 bytes
+ten_millisecond_counter_addr = $0202 ; 2 bytes
 

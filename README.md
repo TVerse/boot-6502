@@ -1,27 +1,25 @@
 # Boot-6502
 
-Code for the 6502 and Arduino.
+Code for the 6502 and Rpi.
 
-Goal is to have some bootcode for the 6502 and a program loader from the Arduino.
+Goal is to have some bootcode for the 6502 and a program loader from the Rpi.
 Also want to include unit test capabilities.
 
 ## 6502 memory map
 0x0000-0x3FFF RAM
 0x6000-0x600F 6522 VIA
+0x5000-0x5003 6551 ACIA
 0x8000-0xFFFF ROM
 
 (might increase RAM size)
 
 ## Communication protocol.
 
-8 bit parallel port, 2-way handshake using the 6522 VIA.
-
-Arduino always initiates (TODO is that good?) and will reset the 6502 when it gets reset.
+UART via 6551.
 
 Response format:
 * ACK: 0x01
 * ACKDATA: 0x02
-
 
 Lengths are nonzero, 0 is interpreted as 256.
 
