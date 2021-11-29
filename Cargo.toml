@@ -7,4 +7,4 @@ edition = "2018"
 [dependencies]
 rppal = "0.13.1"
 ctrlc = "3.2.1"
-anyhow = "1.0.33"
+anyhow = { version = "1.0.33", features = ["backtrace"] }

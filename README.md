@@ -15,22 +15,24 @@ Also want to include unit test capabilities.
 
 ## Communication protocol.
 
-UART via 6551.
+	UART via 6551.
 
-Response format:
-* ACK: 0x01
-* ACKDATA: 0x02
+	Temp set RPI UART frequency to 40MHz so that 9600 baud == 100us per symbol (measured: 106us).
 
-Lengths are nonzero, 0 is interpreted as 256.
+	Response format:
+	* ACK: 0x01
+	* ACKDATA: 0x02
 
-| Name | Command byte | Other bytes | Response format | | Max request length | Max response length |
-| --- | --- | --- | --- | --- | --- |
-| Display string | 0x00 | LEN DATA | ACK | | 258 | 1 |
-| Write bytes | 0x01 | ADDR LEN DATA | ACK | 260 | 1 |
-| Read bytes | 0x02 | ADDR LEN | ACKDATA DATA| 4 | 257 |
-| JSR A | 0x03 | ADDR | ACK | 3 | 1 |
-| JMP A | 0x04 | ADDR | ACK | 3 | 1 |
+	Lengths are nonzero, 0 is interpreted as 256.
 
-Q: ACK before or after return for JSR?
+	| Name | Command byte | Other bytes | Response format | | Max request length | Max response length |
+	| --- | --- | --- | --- | --- | --- |
+	| Display string | 0x00 | LEN DATA | ACK | | 258 | 1 |
+	| Write bytes | 0x01 | ADDR LEN DATA | ACK | 260 | 1 |
+	| Read bytes | 0x02 | ADDR LEN | ACKDATA DATA| 4 | 257 |
+	| JSR A | 0x03 | ADDR | ACK | 3 | 1 |
+	| JMP A | 0x04 | ADDR | ACK | 3 | 1 |
 
-Q: Display String is overkill, can also do it with write/JSR.
+	Q: ACK before or after return for JSR?
+
+	Q: Display String is overkill, can also do it with write/JSR.
