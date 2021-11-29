@@ -3,14 +3,14 @@ use rppal::uart::Parity;
 use rppal::uart::Uart;
 
 const DEVICE: &'static str = "/dev/ttyAMA1";
-const BAUD_RATE: u32 = 9600;
+const BAUD_RATE: u32 = 115200;
 const PARITY: Parity = Parity::None;
 const DATA_BITS: u8 = 8;
 const STOP_BITS: u8 = 1;
 
 pub fn get_default_uart() -> Result<Uart> {
     let mut uart = Uart::with_path(DEVICE, BAUD_RATE, PARITY, DATA_BITS, STOP_BITS)?;
-    uart.set_hardware_flow_control(true)?; // TODO
+    uart.set_hardware_flow_control(true)?;
     Ok(uart)
 }
 

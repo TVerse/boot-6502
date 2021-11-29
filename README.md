@@ -17,8 +17,6 @@ Also want to include unit test capabilities.
 
 	UART via 6551.
 
-	Temp set RPI UART frequency to 40MHz so that 9600 baud == 100us per symbol (measured: 106us).
-
 	Response format:
 	* ACK: 0x01
 	* ACKDATA: 0x02

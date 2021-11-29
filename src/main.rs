@@ -12,22 +12,28 @@ fn main() -> Result<()> {
     println!("Hello World!");
     let exit = Arc::new(AtomicBool::new(false));
     let e = exit.clone();
-    ctrlc::set_handler(move || {
-        println!("Exiting...");
-        e.store(true, Ordering::SeqCst)
-    })?;
+    //ctrlc::set_handler(move || {
+    //    println!("Exiting...");
+    //    e.store(true, Ordering::SeqCst)
+    //})?;
 
     let mut uart = get_default_uart()?;
-    uart.drain()?;
     std::thread::sleep(Duration::from_millis(500));
 
     println!("Sending...");
-    uart.write(&[0x55])?;
+    for b in 0_u8..=255 {
+        uart.write(&[b])?;
+    }
     uart.drain()?;
-    std::thread::sleep(Duration::from_millis(500));
     println!("Sent!");
-    uart.write(&[0x55])?;
-    uart.drain()?;
+
+    std::thread::sleep(Duration::from_millis(500));
+
+    let mut recv = [0_u8; 256];
+    println!("Reading...");
+    //uart.set_read_mode(2, Duration::from_millis(500))?;
+    uart.read(&mut recv)?;
+    println!("Read: {:#04X?}", recv);
 
     std::thread::sleep(Duration::from_millis(500));
 

@@ -87,7 +87,7 @@ reset_base:
 
   ; JMP (program_reset)
   JMP reset
-  
+
 nmi_base:
   JMP (program_nmi)
 irq_base:
@@ -106,9 +106,9 @@ irq_base:
   BRA .program_irq
   .timer:
     BIT T1CL
-    INC five_millisecond_counter_addr
+    INC ten_millisecond_counter_addr
     BNE .no_overflow
-    INC five_millisecond_counter_addr + 1
+    INC ten_millisecond_counter_addr + 1
   .no_overflow:
     BRA .program_irq
   .program_irq:
@@ -130,19 +130,19 @@ loop_base:
 ; Clobbers A
 delay:
   CLC
-  LDA five_millisecond_counter_addr
+  LDA ten_millisecond_counter_addr
   ADC 0, X
   STA 0, X
-  LDA five_millisecond_counter_addr + 1
+  LDA ten_millisecond_counter_addr + 1
   ADC 1, X
   STA 1, X
   .loop:
     WAI
     LDA 0, X
-    CMP five_millisecond_counter_addr
+    CMP ten_millisecond_counter_addr
     BNE .loop
     LDA 1, X
-    CMP five_millisecond_counter_addr + 1
+    CMP ten_millisecond_counter_addr + 1
     BNE .loop
   POP
   RTS
@@ -171,13 +171,13 @@ error_message: .asciiz "ERROR: "
   ; Harder and ATM broken version
   ; Should do atomic reads into X, Y
   ; read_timer:
-  ;   LDX five_millisecond_counter_addr + 1
-  ;   LDY five_millisecond_counter_addr
-  ;   CPX five_millisecond_counter_addr + 1
+  ;   LDX ten_millisecond_counter_addr + 1
+  ;   LDY ten_millisecond_counter_addr
+  ;   CPX ten_millisecond_counter_addr + 1
   ;   BNE read_timer
   ;   RTS
-  ; 
-  ; ; ( 5ms_cycle_count -- )  
+  ;
+  ; ; ( 5ms_cycle_count -- )
   ; delay:
   ;   PHY
   ;   PHX
@@ -210,7 +210,7 @@ error_message: .asciiz "ERROR: "
   ;   .low_byte:
   ;     TYA
   ;     PLY
-  ;     CMP five_millisecond_counter_addr
+  ;     CMP ten_millisecond_counter_addr
   ;     BNE .loop
   ;   POP
   ;   RTS
