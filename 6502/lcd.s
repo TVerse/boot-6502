@@ -3,11 +3,12 @@ LCD_CLEAR = %00001100
 E  = %00000100
 RW = %00000010
 RS = %00000001
+DATA = %01111000
 
 DEFAULT_DDRA = %00000000
 DEFAULT_DDRB = %01111111
 
-; Requires a 5ms timer to be running
+; Requires a 10ms timer to be running
   .macro INITIALIZE_LCD
   ; Reset
   LITERAL_8BIT 13
@@ -78,7 +79,7 @@ wait_lcd_ready:
 
 lcd_send_upper_nibble:
   LSR
-  AND #%01111000
+  AND #DATA
   STA VIA_PORTB
   EOR #E
   STA VIA_PORTB
@@ -90,7 +91,7 @@ lcd_send_lower_nibble:
   ASL
   ASL
   ASL
-  AND #%01111000
+  AND #DATA
   STA VIA_PORTB
   EOR #E
   STA VIA_PORTB
@@ -102,7 +103,7 @@ print_char:
   JSR wait_lcd_ready
   PHA
   LSR
-  AND #%01111000
+  AND #DATA
   EOR #RS
   STA VIA_PORTB
   EOR #E
@@ -113,7 +114,7 @@ print_char:
   ASL
   ASL
   ASL
-  AND #%01111000
+  AND #DATA
   EOR #RS
   STA VIA_PORTB
   EOR #E

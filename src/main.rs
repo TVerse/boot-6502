@@ -21,7 +21,6 @@ fn main() -> Result<()> {
     let mut uart = get_default_uart()?;
     uart.set_write_mode(true);
     uart.set_read_mode(1, Duration::from_millis(1000));
-    sleep();
     let mut rng = rand::thread_rng();
 
     loop {
@@ -29,7 +28,6 @@ fn main() -> Result<()> {
         let b: u8 = rng.gen();
         uart.write(&[b])?;
         uart.drain()?;
-        //        sleep();
         let mut rcv = [0; 16];
         let read = uart.read(&mut rcv)?;
         if read != 1 {
@@ -47,10 +45,5 @@ fn main() -> Result<()> {
         } else {
             println!("Success! Expected and got {:#04X?}", b);
         }
-        //       sleep()
     }
-}
-
-fn sleep() {
-    std::thread::sleep(Duration::from_millis(500));
 }

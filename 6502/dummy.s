@@ -16,8 +16,8 @@ reset:
   STA VIA_IER
 
   ; Timer
-  ; 1250 cycles -> 1248 -> 0x04E0
-  ; OR HALF THIS? (625 -> 623 -> 0x026F)
+  ; Period of 1250 -> timer on 625 (change PB7 level every expiry)
+  ; 625 -> 623 -> 0x026F
   ; Continuous mode, PB7 square wave
   LDA #%11000000
   STA VIA_ACR
@@ -31,7 +31,7 @@ reset:
   LDA #%00010000
   STA ACIA_CONTROL_REGISTER
   ; No parity, no echo, interrupt, ready
-  LDA #%11000101
+  LDA #%11001001
   STA ACIA_COMMAND_REGISTER
 
 loop:
