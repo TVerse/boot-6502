@@ -2,11 +2,12 @@ use anyhow::Result;
 
 use boot_6502::get_default_uart;
 use rppal::gpio::Gpio;
-use rppal::uart::{Parity, Uart};
+use rppal::uart::{Parity, Queue, Uart};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
+use rand::prelude::*;
 
 fn main() -> Result<()> {
     println!("Hello World!");
@@ -18,27 +19,27 @@ fn main() -> Result<()> {
     //})?;
 
     let mut uart = get_default_uart()?;
-    std::thread::sleep(Duration::from_millis(500));
-    let data: Vec<_> = (0_u8..=255).collect();
+    sleep();
+    let mut rng = rand::thread_rng();
 
-    println!("Sending...");
-    uart.write(&data)?;
-    uart.drain()?;
-    println!("Sent!");
-
-    std::thread::sleep(Duration::from_millis(500));
-
-    let mut recv = [0_u8; 256];
-    println!("Reading...");
-    //uart.set_read_mode(2, Duration::from_millis(500))?;
-    uart.read(&mut recv)?;
-    if &recv != data.as_slice() {
-        println!("Got a mistake! Got: {:#04X?}", &recv);
-    } else {
-        println!("Good!");
+    loop {
+        uart.flush(Queue::Both)?;
+        let b: u8 = rng.gen();
+        uart.write(&[b])?;
+        uart.drain()?;
+        let mut rcv = [0; 16];
+        let read = uart.read(&mut rcv)?;
+        if read != 1 {
+            println!("Read a strange number of bytes. Sent: {:#04X?}, got len: {:?}, {:#04X?}", b, read, &rcv[..read]);
+        } else if rcv[0] != b {
+            println!("Got the wrong byte: expected {:#04X?}, got {:#04X?}", b, rcv[0]);
+        } else {
+            println!("Success! Expected and got {:#04X?}", b);
+        }
+        sleep()
     }
+}
 
+fn sleep() {
     std::thread::sleep(Duration::from_millis(500));
-
-    Ok(())
 }

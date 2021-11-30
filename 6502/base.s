@@ -1,25 +1,25 @@
-  .include constants.s
+  .include memory_map.s
 
   .org ROM_START_ADDR
   .include stack.s
-  .include peripherals.s
+  .include lcd.s
   .include debug.s
 
   ; Start 5ms clock, 5000 cycles @ 1MHz
   ; 2 cycles for starting the interrupt = 4998 wait = $1368
   .macro ENABLE_TIMER
   LDA #$0E
-  STA T1CL
+  STA VIA_T1CL
   LDA #$27
-  STA T1CH
+  STA VIA_T1CH
 
-  LDA ACR
+  LDA VIA_ACR
   AND #%01111111
   ORA #%01000000
-  STA ACR
+  STA VIA_ACR
 
   LDA #%11000000
-  STA IER
+  STA VIA_IER
   .endmacro
 
 reset_base:
@@ -35,13 +35,13 @@ reset_base:
 
   ; Set data direction
   LDA #DEFAULT_DDRA
-  STA DDRA
+  STA VIA_DDRA
   LDA #DEFAULT_DDRB
-  STA DDRB
+  STA VIA_DDRB
 
   ; Put ports in known state
-  STZ PORTA
-  STZ PORTB
+  STZ VIA_PORTA
+  STZ VIA_PORTB
 
   ; Put vectors in known state
   LDA #<rti

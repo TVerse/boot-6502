@@ -1,5 +1,12 @@
 LCD_CLEAR = %00001100
 
+E  = %00000100
+RW = %00000010
+RS = %00000001
+
+DEFAULT_DDRA = %00000000
+DEFAULT_DDRB = %01111111
+
 ; Requires a 5ms timer to be running
   .macro INITIALIZE_LCD
   ; Reset
@@ -47,36 +54,36 @@ lcd_instruction:
 
 wait_lcd_ready:
   PHA
-  LDA DDRB
+  LDA VIA_DDRB
   PHA
   LDA #%00000111
-  STA DDRB
+  STA VIA_DDRB
   .poll:
     LDA #RW
-    STA PORTB
+    STA VIA_PORTB
     EOR #E
-    STA PORTB
-    BIT PORTB
+    STA VIA_PORTB
+    BIT VIA_PORTB
     LDA #RW
-    STA PORTB
+    STA VIA_PORTB
     EOR #E
-    STA PORTB
+    STA VIA_PORTB
     BVS .poll
   LDA #RW
-  STA PORTB
+  STA VIA_PORTB
   PLA
-  STA DDRB
+  STA VIA_DDRB
   PLA
   RTS
 
 lcd_send_upper_nibble:
   LSR
   AND #%01111000
-  STA PORTB
+  STA VIA_PORTB
   EOR #E
-  STA PORTB
+  STA VIA_PORTB
   EOR #E
-  STA PORTB
+  STA VIA_PORTB
   RTS
 
 lcd_send_lower_nibble:
@@ -84,11 +91,11 @@ lcd_send_lower_nibble:
   ASL
   ASL
   AND #%01111000
-  STA PORTB
+  STA VIA_PORTB
   EOR #E
-  STA PORTB
+  STA VIA_PORTB
   EOR #E
-  STA PORTB
+  STA VIA_PORTB
   RTS
 
 print_char:
@@ -97,22 +104,22 @@ print_char:
   LSR
   AND #%01111000
   EOR #RS
-  STA PORTB
+  STA VIA_PORTB
   EOR #E
-  STA PORTB
+  STA VIA_PORTB
   EOR #E
-  STA PORTB
+  STA VIA_PORTB
   PLA
   ASL
   ASL
   ASL
   AND #%01111000
   EOR #RS
-  STA PORTB
+  STA VIA_PORTB
   EOR #E
-  STA PORTB
+  STA VIA_PORTB
   EOR #E
-  STA PORTB
+  STA VIA_PORTB
   RTS
 
 print_null_terminated_string_stack:

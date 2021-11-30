@@ -6,3 +6,5 @@
 */Cargo.lock
 *.vim
 *.swp
+*.ods
+*.ods#

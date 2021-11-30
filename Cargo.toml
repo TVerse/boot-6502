@@ -8,3 +8,4 @@ edition = "2018"
 rppal = "0.13.1"
 ctrlc = "3.2.1"
 anyhow = { version = "1.0.33", features = ["backtrace"] }
+rand = "0.8.4"
