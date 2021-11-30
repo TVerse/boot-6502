@@ -3,7 +3,7 @@ use rppal::uart::Parity;
 use rppal::uart::Uart;
 
 const DEVICE: &'static str = "/dev/ttyAMA1";
-const BAUD_RATE: u32 = 115200;
+const BAUD_RATE: u32 = 50;
 const PARITY: Parity = Parity::None;
 const DATA_BITS: u8 = 8;
 const STOP_BITS: u8 = 1;

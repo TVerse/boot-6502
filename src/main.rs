@@ -19,11 +19,10 @@ fn main() -> Result<()> {
 
     let mut uart = get_default_uart()?;
     std::thread::sleep(Duration::from_millis(500));
+    let data: Vec<_> = (0_u8..=255).collect();
 
     println!("Sending...");
-    for b in 0_u8..=255 {
-        uart.write(&[b])?;
-    }
+    uart.write(&data)?;
     uart.drain()?;
     println!("Sent!");
 
@@ -33,7 +32,11 @@ fn main() -> Result<()> {
     println!("Reading...");
     //uart.set_read_mode(2, Duration::from_millis(500))?;
     uart.read(&mut recv)?;
-    println!("Read: {:#04X?}", recv);
+    if &recv != data.as_slice() {
+        println!("Got a mistake! Got: {:#04X?}", &recv);
+    } else {
+        println!("Good!");
+    }
 
     std::thread::sleep(Duration::from_millis(500));
 
