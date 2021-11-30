@@ -1,43 +1,24 @@
 use anyhow::Result;
-use rppal::uart::Parity;
-use rppal::uart::Uart;
+use serial_core::BaudRate;
+use serial_core::CharSize;
+use serial_core::FlowControl;
+use serial_core::Parity;
+use serial_core::SerialDevice;
+use serial_core::SerialPortSettings;
+use serial_core::StopBits;
+use serial_unix::TTYPort;
+use serial_unix::TTYSettings;
+use std::path::Path;
 
-const DEVICE: &'static str = "/dev/ttyAMA1";
-const BAUD_RATE: u32 = 50;
-const PARITY: Parity = Parity::None;
-const DATA_BITS: u8 = 8;
-const STOP_BITS: u8 = 1;
-
-pub fn get_default_uart() -> Result<Uart> {
-    let mut uart = Uart::with_path(DEVICE, BAUD_RATE, PARITY, DATA_BITS, STOP_BITS)?;
-    uart.set_hardware_flow_control(true)?;
-    Ok(uart)
-}
-
-pub fn write_bytes(uart: &mut Uart, target_location: u16, data: &[u8]) -> Result<()> {
-    // TODO
-    assert!(data.len() < 256);
-    uart.write(&[0x01])?;
-    uart.write(&target_location.to_le_bytes())?;
-    uart.write(data)?;
-
-    // TODO how does read work? What about null bytes?
-    // uart.read()
-    Ok(())
-}
-
-pub fn read_bytes(uart: &mut Uart, source_location: usize, data: &mut [u8]) -> Result<()> {
-    // TODO
-    assert!(data.len() < 256);
-    uart.write(&[0x01])?;
-    uart.write(data)?;
-    Ok(())
-}
-
-pub fn jump(uart: &mut Uart, location: usize) -> Result<()> {
-    todo!()
-}
-
-pub fn jsr(uart: &mut Uart, location: usize) -> Result<()> {
-    todo!()
+pub fn get_default_serial() -> Result<TTYPort> {
+    let mut tty = TTYPort::open(Path::new("/dev/ttyAMA1"))?;
+    tty.set_timeout(std::time::Duration::from_millis(1000))?; // TODO, this long is required for reading
+    let mut settings = tty.read_settings()?;
+    settings.set_baud_rate(BaudRate::BaudOther(50))?;
+    settings.set_parity(Parity::ParityNone);
+    settings.set_char_size(CharSize::Bits8);
+    settings.set_stop_bits(StopBits::Stop1);
+    settings.set_flow_control(FlowControl::FlowHardware);
+    tty.write_settings(&settings)?;
+    Ok(tty)
 }
