@@ -92,7 +92,7 @@ nmi_base:
   JMP (program_nmi)
 irq_base:
   PHA
-  LDA IFR
+  LDA VIA_IFR
   ASL ; IRQ
   BCC .program_irq ; Not the VIA
   ASL ; T1
@@ -105,7 +105,7 @@ irq_base:
   ; ASL ; CA2
   BRA .program_irq
   .timer:
-    BIT T1CL
+    BIT VIA_T1CL
     INC ten_millisecond_counter_addr
     BNE .no_overflow
     INC ten_millisecond_counter_addr + 1

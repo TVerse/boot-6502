@@ -41,21 +41,21 @@ reset:
 
   ; Timer
   ; 1250 cycles -> 1248 -> 0x04E0
-  ; OR HALF THIS? (750 -> 748 -> 0x02EC)
+  ; OR HALF THIS? (625 -> 623 -> 0x026F)
   ; Continuous mode, PB7 square wave
   LDA #%11000000
   STA VIA_ACR
-  LDA #$EC
+  LDA #$6F
   STA VIA_T1CL
   LDA #$02
   STA VIA_T1CH
 
   ; ACIA
   ; 1 stop bit, 8 bits, rcv baud rate, 16x
-  LDA #%0001000
+  LDA #%00010000
   STA ACIA_CONTROL_REGISTER
   ; No parity, echo, no interrupt, ready
-  LDA #%11010011
+  LDA #%11000011
   STA ACIA_COMMAND_REGISTER
 
 

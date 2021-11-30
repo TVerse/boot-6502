@@ -1,13 +1,13 @@
 use anyhow::Result;
 
 use boot_6502::get_default_uart;
+use rand::prelude::*;
 use rppal::gpio::Gpio;
 use rppal::uart::{Parity, Queue, Uart};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
-use rand::prelude::*;
 
 fn main() -> Result<()> {
     println!("Hello World!");
@@ -23,16 +23,25 @@ fn main() -> Result<()> {
     let mut rng = rand::thread_rng();
 
     loop {
-        uart.flush(Queue::Both)?;
+        //        uart.flush(Queue::Both)?;
         let b: u8 = rng.gen();
         uart.write(&[b])?;
         uart.drain()?;
+        sleep();
         let mut rcv = [0; 16];
         let read = uart.read(&mut rcv)?;
         if read != 1 {
-            println!("Read a strange number of bytes. Sent: {:#04X?}, got len: {:?}, {:#04X?}", b, read, &rcv[..read]);
+            println!(
+                "Read a strange number of bytes. Sent: {:#04X?}, got len: {:?}, {:#04X?}",
+                b,
+                read,
+                &rcv[..read]
+            );
         } else if rcv[0] != b {
-            println!("Got the wrong byte: expected {:#04X?}, got {:#04X?}", b, rcv[0]);
+            println!(
+                "Got the wrong byte: expected {:#04X?}, got {:#04X?}",
+                b, rcv[0]
+            );
         } else {
             println!("Success! Expected and got {:#04X?}", b);
         }
@@ -41,5 +50,5 @@ fn main() -> Result<()> {
 }
 
 fn sleep() {
-    std::thread::sleep(Duration::from_millis(500));
+    std::thread::sleep(Duration::from_millis(100));
 }
