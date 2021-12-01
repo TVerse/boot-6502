@@ -14,7 +14,7 @@ pub fn get_default_serial() -> Result<TTYPort> {
     let mut tty = TTYPort::open(Path::new("/dev/ttyAMA1"))?;
     tty.set_timeout(std::time::Duration::from_millis(1000))?; // TODO, this long is required for reading
     let mut settings = tty.read_settings()?;
-    settings.set_baud_rate(BaudRate::BaudOther(50))?;
+    settings.set_baud_rate(BaudRate::Baud9600)?;
     settings.set_parity(Parity::ParityNone);
     settings.set_char_size(CharSize::Bits8);
     settings.set_stop_bits(StopBits::Stop1);

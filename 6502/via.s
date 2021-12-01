@@ -21,13 +21,13 @@ VIA_PORTA_NOHS = VIA_BASE + $F
 
 LCD_CLEAR = %00001100
 
-E  = %00000100
+E  = %10000000
 RW = %00000010
 RS = %00000001
-DATA = %01111000
+DATA = %00111100
 
 DEFAULT_DDRA = %00000000
-DEFAULT_DDRB = %01111111
+DEFAULT_DDRB = %10111111
 
 ; Requires a 10ms timer to be running
   .macro INITIALIZE_LCD
@@ -87,7 +87,7 @@ wait_lcd_ready:
   PHA
   LDA VIA_DDRB
   PHA
-  LDA #%00000111
+  LDA #(E | RS | RW)
   STA VIA_DDRB
   .poll:
     LDA #RW
@@ -109,6 +109,7 @@ wait_lcd_ready:
 
 lcd_send_upper_nibble:
   LSR
+  LSR
   AND #DATA
   STA VIA_PORTB
   EOR #E
@@ -118,7 +119,6 @@ lcd_send_upper_nibble:
   RTS
 
 lcd_send_lower_nibble:
-  ASL
   ASL
   ASL
   AND #DATA
@@ -133,6 +133,7 @@ print_char:
   JSR wait_lcd_ready
   PHA
   LSR
+  LSR
   AND #DATA
   EOR #RS
   STA VIA_PORTB
@@ -141,7 +142,6 @@ print_char:
   EOR #E
   STA VIA_PORTB
   PLA
-  ASL
   ASL
   ASL
   AND #DATA
