@@ -5,8 +5,8 @@
   .include lcd.s
   .include debug.s
 
-  ; Start 5ms clock, 5000 cycles @ 1MHz
-  ; 2 cycles for starting the interrupt = 4998 wait = $1368
+  ; Start 10ms clock, 10000 cycles @ 1MHz
+  ; 2 cycles for starting the interrupt = 9998 wait = $270E
   .macro ENABLE_TIMER
   LDA #$0E
   STA VIA_T1CL
