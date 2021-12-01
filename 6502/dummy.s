@@ -12,23 +12,9 @@ reset:
   LDA #>nmi
   STA program_nmi + 1
 
-  LDA #%01111111
-  STA VIA_IER
-
-  ; Timer
-  ; Period of 1250 -> timer on 625 (change PB7 level every expiry)
-  ; 625 -> 623 -> 0x026F
-  ; Continuous mode, PB7 square wave
-  LDA #%11000000
-  STA VIA_ACR
-  LDA #$6F
-  STA VIA_T1CL
-  LDA #$02
-  STA VIA_T1CH
-
   ; ACIA
-  ; 1 stop bit, 8 bits, rcv baud rate, 16x
-  LDA #%00010000
+  ; 1 stop bit, 8 bits, rcv baud rate, 9600
+  LDA #%00011110
   STA ACIA_CONTROL_REGISTER
   ; No parity, no echo, interrupt, ready
   LDA #%11001001
