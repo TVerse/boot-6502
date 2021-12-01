@@ -2,7 +2,8 @@
 
   .org ROM_START_ADDR
   .include stack.s
-  .include lcd.s
+  .include via.s
+  .include acia.s
   .include debug.s
 
   ; Start 5ms clock, 5000 cycles @ 1MHz
