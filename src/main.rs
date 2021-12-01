@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use anyhow::Result;
 
 use boot_6502::get_default_serial;
@@ -28,6 +29,7 @@ fn main() -> Result<()> {
                 "Got the wrong byte: expected {:#04X?}, got {:#04X?}",
                 b, rcvd[0]
             );
+            return Err(anyhow!("Wrong byte!"));
         } else {
             println!("Success! Expected and got {:#04X?}", b);
         }

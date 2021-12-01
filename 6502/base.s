@@ -81,12 +81,16 @@ reset_base:
 
   LITERAL initialized_base
   JSR print_null_terminated_string_stack
+  POP
 
   LITERAL 50
   JSR delay
 
   LDA #%00000001
   JSR lcd_instruction
+
+  LITERAL 50
+  JSR delay
 
   JMP reset
 
@@ -96,7 +100,7 @@ nmi_base:
   AND #%00001000
   BEQ .done
   LDA ACIA_DATA_REGISTERS
-  JSR print_char
+  ;JSR print_char
 .done:
   PLA
   JMP (program_nmi)
@@ -123,6 +127,8 @@ irq_base:
 .no_overflow:
   BRA .program_irq
 .transmit:
+  LDA #%00100000 ; TODO figure out how to properly turn this off)
+  STA VIA_IFR
   PHY
   JSR transmit
   PLY

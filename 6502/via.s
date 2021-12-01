@@ -26,7 +26,8 @@ RW = %00000010
 RS = %00000001
 DATA = %00111100
 
-DEFAULT_DDRA = %00000000
+; DEFAULT_DDRA = %00000000
+DEFAULT_DDRA = %11111111
 DEFAULT_DDRB = %10111111
 
 ; Requires a 10ms timer to be running
@@ -68,12 +69,12 @@ DEFAULT_DDRB = %10111111
   .endmacro
 
 via_prep_for_transmit:
-  ; Set T2CL
-  STA VIA_T2CL
   ; Set T2 to pulse counting mode
   LDA VIA_ACR
   EOR #%00100000
   STA VIA_ACR
+  LDA #%10100000
+  STA VIA_IER
   RTS
 
 lcd_instruction:
@@ -163,7 +164,6 @@ print_null_terminated_string_stack:
     INC 1,X
     BRA .loop
   .end:
-    POP
     RTS
 
 print_length_string_stack:

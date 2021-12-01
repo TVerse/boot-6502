@@ -6,16 +6,19 @@ DEBUG=1
 
 reset:
   STZ initialization_done
-
-  LDY #0
+  STZ VIA_PORTA
+  PHX
+  LDX #0
 .send_byte:
-  LDA hello_world, Y
+  LDA hello_world, X
   BEQ .done
   JSR write_transmit_byte
-  INY
+  INX
   BRA .send_byte
 .done
+  PLX
   JSR initiate_transmit
+  INC VIA_PORTA
 
 loop:
   WAI
