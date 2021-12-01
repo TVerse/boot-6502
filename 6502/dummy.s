@@ -7,36 +7,24 @@ DEBUG=1
 reset:
   STZ initialization_done
 
-  LDA #<nmi
-  STA program_nmi
-  LDA #>nmi
-  STA program_nmi + 1
-
-  ; ACIA
-  ; 1 stop bit, 8 bits, rcv baud rate, 9600
-  LDA #%00011110
-  STA ACIA_CONTROL_REGISTER
-  ; No parity, no echo, interrupt, ready
-  LDA #%11001001
-  STA ACIA_COMMAND_REGISTER
+  LDY #0
+.send_byte:
+  LDA hello_world, Y
+  BEQ .done
+  JSR write_transmit_byte
+  INY
+  BRA .send_byte
+.done
+  JSR initiate_transmit
 
 loop:
   WAI
   JMP loop
 
 hello_world:
-  .asciiz "Hi!"
+  .asciiz "Hello, world! How are you?"
 
 nmi:
-  PHA
-  LDA ACIA_STATUS_RESET_REGISTERS
-  AND #%00001000
-  BEQ .done
-  LDA ACIA_DATA_REGISTERS
-  STA ACIA_DATA_REGISTERS
-  JSR print_char
-.done:
-  PLA
   RTI
 irq:
   RTI

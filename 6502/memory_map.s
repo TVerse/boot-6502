@@ -18,7 +18,7 @@ initialization_done = $0200 ; 1 byte
 ; 1 byte free
 ten_millisecond_counter_addr = $0202 ; 2 bytes
 
-; One byte with page-aligned buffers.
+; One byte with page-aligned buffers. (TODO not needed with indexed addressing?)
 ; Both pointers are increment-then-use
 ; Buffer is full if (write + 1) == read
 ; Buffer is empty if write == read

@@ -1,17 +1,13 @@
 ; Considerations:
 ; * Control RTS based on buffer size (need to be a bit early to account for in-transit data!)
-; * Use VIA T1/PB7 until crystal comes in
 ; * Hook up to NMI
-; * NMI is the only thing that writes the rx buffer and reads the tx buffer (so no catchup after)
-;   * Is that possible? How to initiate writes without having to keep interrupts on?
+; * NMI is the only thing that writes the rx buffer
+; * Do tx from IRQ with T2/PB6 count cause bug
+;   * Transmit bit in status register is stuck on, irq constantly triggers and can't poll it either.
 ; * At 115200 baud we have 86 cycles @ 1MHz to finish up, but can't go that fast due to transmit bug.
+;   * To get good counts we can't be faster than PIH2 / 4 == 250KHz, 9600 -> 153.6KHz (16 counts per symbol).
 ;
 ; Is it possible to make the NMI overlap-safe?
-
-; PLAN
-; 9600 baud with crystal
-; RxD pin to PB6 (need to reorder LCD)
-; Use VIA T2 for transmit interrupts, 16x cycles, start + stop + 8bit (no parity) = 160. Need leeway?
 
   .ifndef ACIA_BASE
 ACIA_BASE = $5000
@@ -34,7 +30,7 @@ init_acia:
   ; 1 stop bit, 8 bits, rcv baud rate, 9600 on crystal
   LDA #%00011110
   STA ACIA_CONTROL_REGISTER
-  ; No parity, normal mode, RTSB high, no tx interrupt, rx interrupt, data terminal ready (unused)
+  ; No parity, normal mode, RTSB low, no tx interrupt, rx interrupt, data terminal ready (unused)
   LDA #%11000001
   STA ACIA_COMMAND_REGISTER
 
@@ -45,30 +41,24 @@ init_acia:
 
 ; Will start the transmit on the next T2 tick
 initiate_transmit:
-  ; If T2 low is zero we're not transmitting anything.
-  ; Or we got really unlucky and an interrupt is about to trigger. Both are fine.
   BIT acia_tx_in_progress
   BPL .done
   DEC acia_tx_in_progress
   ; Start T2 by writing to the high byte
   STZ VIA_T2CH
-  ; Pull RTS low
-  PHA
-  LDA ACIA_COMMAND_REGISTER
-  EOR #%00001000
-  STA ACIA_COMMAND_REGISTER
-  PLA
 .done:
   RTS
 
 ; Clobbers Y
+; Return a value instead of just initiating transmit?
 write_transmit_byte:
   PHA
-  BIT acia_tx_in_progress
+  LDA acia_tx_buffer_write_ptr
+  INC
+  CMP acia_tx_buffer_read_ptr
   BNE .ready
-  PHA
+  ; Buffer full, initiate transmit and wait a bit
   JSR initiate_transmit
-  PLA
 .wait
   WAI
   CMP acia_tx_buffer_read_ptr
@@ -81,6 +71,7 @@ write_transmit_byte:
   RTS
 
 ; Called from IRQ
+; Ignore CTS, we cannot read the line directly and transmit status is stuck on
 transmit:
   ; Check if buffer empty
   LDA acia_tx_buffer_write_ptr

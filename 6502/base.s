@@ -57,7 +57,7 @@ reset_base:
   STA program_reset + 1
 
   ; Don't send interrupt to program yet
-  LDA $FF
+  LDA #$FF
   STA initialization_done
   STA program_reset
 
@@ -77,6 +77,8 @@ reset_base:
   LDA #LCD_CLEAR
   JSR lcd_instruction
 
+  JSR init_acia
+
   LITERAL initialized_base
   JSR print_null_terminated_string_stack
 
@@ -86,10 +88,17 @@ reset_base:
   LDA #%00000001
   JSR lcd_instruction
 
-  ; JMP (program_reset)
   JMP reset
 
 nmi_base:
+  PHA
+  LDA ACIA_STATUS_RESET_REGISTERS
+  AND #%00001000
+  BEQ .done
+  LDA ACIA_DATA_REGISTERS
+  JSR print_char
+.done:
+  PLA
   JMP (program_nmi)
 irq_base:
   PHA
@@ -98,27 +107,32 @@ irq_base:
   BCC .program_irq ; Not the VIA
   ASL ; T1
   BCS .timer
-  ; ASL ; T2
+  ASL ; T2
+  BCS .transmit
   ; ASL ; CB1
   ; ASL ; CB2
   ; ASL ; Shift
   ; ASL ; CA1
   ; ASL ; CA2
   BRA .program_irq
-  .timer:
-    BIT VIA_T1CL
-    INC ten_millisecond_counter_addr
-    BNE .no_overflow
-    INC ten_millisecond_counter_addr + 1
-  .no_overflow:
-    BRA .program_irq
-  .program_irq:
-    PLA
-    BIT initialization_done
-    BNE .not_done
-    JMP (program_irq)
-    .not_done:
-      RTI
+.timer:
+  BIT VIA_T1CL
+  INC ten_millisecond_counter_addr
+  BNE .no_overflow
+  INC ten_millisecond_counter_addr + 1
+.no_overflow:
+  BRA .program_irq
+.transmit:
+  PHY
+  JSR transmit
+  PLY
+.program_irq:
+  PLA
+  BIT initialization_done
+  BNE .not_done
+  JMP (program_irq)
+.not_done:
+  RTI
 
 rti:
   RTI
