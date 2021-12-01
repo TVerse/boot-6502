@@ -5,12 +5,9 @@ authors = ["Tim Evers <29369097+TVerse@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
-lib-io = { path = "lib-io" }
-lib-io-rpi = { path = "lib-io-rpi" }
-gpio-cdev = "0.4.0"
-itertools = "0.9.0"
-tempfile = "3.1.0"
-anyhow = "1.0.33"
+serial-unix = "0.4.0"
+serial-core = "0.4.0"
+ctrlc = "3.2.1"
+anyhow = { version = "1.0.33", features = ["backtrace"] }
+rand = "0.8.4"
 
-[dev-dependencies]
-rand = "0.7.3"

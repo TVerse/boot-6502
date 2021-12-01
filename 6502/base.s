@@ -1,72 +1,28 @@
-  .include constants.s
+  .include memory_map.s
 
   .org ROM_START_ADDR
   .include stack.s
-  .include peripherals.s
+  .include lcd.s
   .include debug.s
-  .include comms.s
 
   ; Start 5ms clock, 5000 cycles @ 1MHz
   ; 2 cycles for starting the interrupt = 4998 wait = $1368
   .macro ENABLE_TIMER
-  LDA #$86
-  STA T1CL
-  LDA #$13
-  STA T1CH
+  LDA #$0E
+  STA VIA_T1CL
+  LDA #$27
+  STA VIA_T1CH
 
-  LDA ACR
+  LDA VIA_ACR
   AND #%01111111
   ORA #%01000000
-  STA ACR
+  STA VIA_ACR
 
   LDA #%11000000
-  STA IER
-  .endmacro
-
-  .macro INITIALIZE_LCD
-  ; Reset
-  LITERAL_8BIT 25
-  JSR delay
-  LDA #%00110000
-  JSR lcd_send_upper_nibble
-  LITERAL_8BIT 5
-  JSR delay
-  LDA #%00110000
-  JSR lcd_send_upper_nibble
-  LITERAL_8BIT 5
-  JSR delay
-  LDA #%00110000
-  JSR lcd_send_upper_nibble
-  LITERAL_8BIT 5
-  JSR delay
-  ; Set 4bit interface
-  LDA #%00100000
-  JSR lcd_send_upper_nibble
-  LITERAL_8BIT 5
-  JSR delay
-
-  ; Software initialize
-  LDA #%00101000
-  JSR lcd_instruction
-  LDA #%00001000
-  JSR lcd_instruction
-  LDA #%00000001
-  JSR lcd_instruction
-
-  LITERAL_8BIT 200
-  JSR delay
-
-  LDA #%00000110
-  JSR lcd_instruction
+  STA VIA_IER
   .endmacro
 
 reset_base:
-  ; Disable and stop interrupts
-  SEI
-  LDA #%01111111
-  STA IER
-  STA IFR
-
   ; Reset decimal flag
   CLD
 
@@ -79,17 +35,13 @@ reset_base:
 
   ; Set data direction
   LDA #DEFAULT_DDRA
-  STA DDRA
+  STA VIA_DDRA
   LDA #DEFAULT_DDRB
-  STA DDRB
+  STA VIA_DDRB
 
   ; Put ports in known state
-  STZ PORTA
-  STZ PORTB
-
-  ; Reset counter
-  STZ five_millisecond_counter_addr
-  STZ five_millisecond_counter_addr + 1
+  STZ VIA_PORTA
+  STZ VIA_PORTB
 
   ; Put vectors in known state
   LDA #<rti
@@ -103,12 +55,14 @@ reset_base:
   LDA #>loop_base
   STA program_reset + 1
 
-  ; Program not loaded
-  STZ program_load_done
-
   ; Don't send interrupt to program yet
   LDA $FF
   STA initialization_done
+  STA program_reset
+
+  ; Reset counter
+  STZ ten_millisecond_counter_addr
+  STZ ten_millisecond_counter_addr + 1
 
   ENABLE_TIMER
 
@@ -119,54 +73,44 @@ reset_base:
   ; 4-bit, 2 line, 5x8 characters, move right
   INITIALIZE_LCD
 
-  LDA #%00001100
+  LDA #LCD_CLEAR
   JSR lcd_instruction
 
   LITERAL initialized_base
   JSR print_null_terminated_string_stack
 
-  LITERAL 100
+  LITERAL 50
   JSR delay
 
   LDA #%00000001
   JSR lcd_instruction
 
-  JSR set_input
-  JSR init_comms
+  ; JMP (program_reset)
+  JMP reset
 
-  .wait_for_program_loaded:
-    WAI
-    LDA program_load_done
-    BEQ .wait_for_program_loaded
-  
-  JMP (program_reset)
-  
 nmi_base:
   JMP (program_nmi)
 irq_base:
   PHA
-  LDA IFR
+  LDA VIA_IFR
   ASL ; IRQ
   BCC .program_irq ; Not the VIA
   ASL ; T1
   BCS .timer
-  ASL ; T2
-  ASL ; CB1
-  ASL ; CB2
-  ASL ; Shift
-  ASL ; CA1
-  BCS .comms
-  ASL ; CA2
+  ; ASL ; T2
+  ; ASL ; CB1
+  ; ASL ; CB2
+  ; ASL ; Shift
+  ; ASL ; CA1
+  ; ASL ; CA2
   BRA .program_irq
   .timer:
-    BIT T1CL
-    INC five_millisecond_counter_addr
+    BIT VIA_T1CL
+    INC ten_millisecond_counter_addr
     BNE .no_overflow
-    INC five_millisecond_counter_addr + 1
+    INC ten_millisecond_counter_addr + 1
   .no_overflow:
     BRA .program_irq
-  .comms:
-    JSR dispatch
   .program_irq:
     PLA
     BIT initialization_done
@@ -186,19 +130,19 @@ loop_base:
 ; Clobbers A
 delay:
   CLC
-  LDA five_millisecond_counter_addr
+  LDA ten_millisecond_counter_addr
   ADC 0, X
   STA 0, X
-  LDA five_millisecond_counter_addr + 1
+  LDA ten_millisecond_counter_addr + 1
   ADC 1, X
   STA 1, X
   .loop:
     WAI
     LDA 0, X
-    CMP five_millisecond_counter_addr
+    CMP ten_millisecond_counter_addr
     BNE .loop
     LDA 1, X
-    CMP five_millisecond_counter_addr + 1
+    CMP ten_millisecond_counter_addr + 1
     BNE .loop
   POP
   RTS
@@ -208,13 +152,13 @@ delay:
 error:
   SEI
   LDA #%00000001
-  ;JSR lcd_instruction
+  JSR lcd_instruction
   LITERAL error_message
   JSR print_null_terminated_string_stack
   LDA 0,X
   ORA 1,X
   BEQ .loop
-  .has_message:
+  ; .has_message:
     LDA #%11000000 ; Jump to second row
     JSR lcd_instruction
     JSR print_null_terminated_string_stack
@@ -227,13 +171,13 @@ error_message: .asciiz "ERROR: "
   ; Harder and ATM broken version
   ; Should do atomic reads into X, Y
   ; read_timer:
-  ;   LDX five_millisecond_counter_addr + 1
-  ;   LDY five_millisecond_counter_addr
-  ;   CPX five_millisecond_counter_addr + 1
+  ;   LDX ten_millisecond_counter_addr + 1
+  ;   LDY ten_millisecond_counter_addr
+  ;   CPX ten_millisecond_counter_addr + 1
   ;   BNE read_timer
   ;   RTS
-  ; 
-  ; ; ( 5ms_cycle_count -- )  
+  ;
+  ; ; ( 5ms_cycle_count -- )
   ; delay:
   ;   PHY
   ;   PHX
@@ -266,7 +210,7 @@ error_message: .asciiz "ERROR: "
   ;   .low_byte:
   ;     TYA
   ;     PLY
-  ;     CMP five_millisecond_counter_addr
+  ;     CMP ten_millisecond_counter_addr
   ;     BNE .loop
   ;   POP
   ;   RTS
