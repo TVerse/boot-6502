@@ -6,6 +6,7 @@
 ;   * Transmit bit in status register is stuck on, irq constantly triggers and can't poll it either.
 ; * At 115200 baud we have 86 cycles @ 1MHz to finish up, but can't go that fast due to transmit bug.
 ;   * To get good counts we can't be faster than PIH2 / 4 == 250KHz, 9600 -> 153.6KHz (16 counts per symbol).
+; * TODO can I replace counting with RC + Schmitt trigger on tx line?
 ;
 ; Is it possible to make the NMI overlap-safe?
 
@@ -18,17 +19,33 @@ ACIA_STATUS_RESET_REGISTERS = ACIA_BASE + $1
 ACIA_COMMAND_REGISTER = ACIA_BASE + $2
 ACIA_CONTROL_REGISTER = ACIA_BASE + $3
 
-TX_T2_PULSES = 500 ; TODO increase this a bit for leeway?
-TX_T2_L = <TX_T2_PULSES
-TX_T2_H = >TX_T2_PULSES
+TX_T2_PULSES = 255 ; 160 breaks in a weird way (on memcpy?) No further optimization
 
 init_acia:
   ; Set buffer pointers
-  STZ acia_tx_buffer_write_ptr
-  STZ acia_tx_buffer_read_ptr
-  STZ acia_rx_buffer_write_ptr
-  STZ acia_rx_buffer_read_ptr
+  LDA #$FF
+  STA acia_tx_buffer_write_ptr
+  STA acia_tx_buffer_read_ptr
+  STA acia_rx_buffer_write_ptr
+  STA acia_rx_buffer_read_ptr
+
   STZ acia_tx_in_progress
+
+  ; Init rx buffer to all FF for easier testing
+  LDY #0
+  LDA #$FF
+.loop_rx
+  STA acia_rx_buffer
+  INY
+  BNE .loop_rx
+
+  ; Same but tx
+  LDY #0
+  LDA #$FE
+.loop_tx:
+  STA acia_tx_buffer
+  INY
+  BNE .loop_tx
 
   ; 1 stop bit, 8 bits, rcv baud rate, 9600 on crystal
   LDA #%00011110
@@ -44,13 +61,13 @@ init_acia:
 initiate_transmit:
   BIT acia_tx_in_progress
   BMI .done
+  INC VIA_PORTA
   DEC acia_tx_in_progress
   ; Start T2 by writing to the high byte
   PHA
-  LDA #TX_T2_L
+  LDA #TX_T2_PULSES
   STA VIA_T2CL
-  LDA #TX_T2_H
-  STA VIA_T2CH
+  STZ VIA_T2CH
   PLA
 .done:
   RTS
@@ -72,27 +89,36 @@ write_transmit_byte:
   BNE .wait
 .ready:
   TAY
-  DEY
   PLA
+  STY acia_tx_buffer_write_ptr
   STA acia_tx_buffer, Y
-  INC acia_tx_buffer_write_ptr
   RTS
+
+; Called from NMI
+; TODO set RTS line to prevent overflow
+; TODO handle overrun n stuff
+acia_receive:
+  LDA ACIA_DATA_REGISTERS
+  INC acia_rx_buffer_write_ptr
+  LDY acia_rx_buffer_write_ptr
+  STA acia_rx_buffer, Y
+  RTS
+
 
 ; Called from IRQ
 ; Ignore CTS, we cannot read the line directly and transmit status is stuck on
 ; TODO can AND CTS with PB6?
-transmit:
+acia_transmit:
   ; Check if buffer empty
   LDA acia_tx_buffer_write_ptr
   CMP acia_tx_buffer_read_ptr
   BEQ .empty
   ; If not, send a byte and reinit T2
+  INC acia_tx_buffer_read_ptr
   LDY acia_tx_buffer_read_ptr
   LDA acia_tx_buffer, Y
-  INC acia_tx_buffer_read_ptr
   STA ACIA_DATA_REGISTERS
-  LDA #TX_T2_H
-  STA VIA_T2CH
+  STZ VIA_T2CH
   BRA .done
 .empty:
   STZ acia_tx_in_progress

@@ -10,28 +10,29 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
+const MSG: &'static [u8] = b"Hello!\0";
+
 fn main() -> Result<()> {
     println!("Opening serial port");
     let mut serial = get_default_serial()?;
     let mut rng = rand::thread_rng();
 
-    loop {
-        println!("Generating and sending");
-        let b: u8 = rng.gen();
-        serial.write_all(&[b])?;
-        println!("Flushing");
-        serial.flush()?;
-        let mut rcvd = [0; 1];
-        println!("Reading");
-        serial.read_exact(&mut rcvd)?;
-        if rcvd[0] != b {
-            println!(
-                "Got the wrong byte: expected {:#04X?}, got {:#04X?}",
-                b, rcvd[0]
-            );
-            return Err(anyhow!("Wrong byte!"));
-        } else {
-            println!("Success! Expected and got {:#04X?}", b);
-        }
+    println!("Generating and sending");
+    serial.write_all(MSG)?;
+    println!("Flushing");
+    serial.flush()?;
+    let mut rcvd = [0; MSG.len()];
+    println!("Reading");
+    serial.read_exact(&mut rcvd)?;
+    if rcvd == MSG {
+        println!(
+            "Success! Got {:?}, {}",
+            &rcvd,
+            String::from_utf8_lossy(&rcvd)
+        );
+    } else {
+        println!("Got {:?}, {}", &rcvd, String::from_utf8_lossy(&rcvd));
     }
+
+    Ok(())
 }

@@ -2,6 +2,7 @@
 
   .org ROM_START_ADDR
   .include stack.s
+  .include memory.s
   .include via.s
   .include acia.s
   .include debug.s
@@ -99,8 +100,9 @@ nmi_base:
   LDA ACIA_STATUS_RESET_REGISTERS
   AND #%00001000
   BEQ .done
-  LDA ACIA_DATA_REGISTERS
-  ;JSR print_char
+  PHY
+  JSR acia_receive
+  PLY
 .done:
   PLA
   JMP (program_nmi)
@@ -129,7 +131,7 @@ irq_base:
 .transmit:
   BIT VIA_T2CL
   PHY
-  JSR transmit
+  JSR acia_transmit
   PLY
 .program_irq:
   PLA

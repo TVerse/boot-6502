@@ -19,9 +19,11 @@ initialization_done = $0200 ; 1 byte
 ten_millisecond_counter_addr = $0202 ; 2 bytes
 
 ; One byte with page-aligned buffers. (TODO not needed with indexed addressing?)
-; Both pointers are increment-then-use
+; Both pointers are increment-then-use (so pointing at the last byte read/written)
 ; Buffer is full if (write + 1) == read
 ; Buffer is empty if write == read
+; If these are full pointers instead of an increment, does addressing become simpler?
+; Might free up a register. But addition doesn't auto-carry anymore so align to page or do 16-bit add.
 acia_tx_in_progress = $02FB
 acia_tx_buffer_write_ptr = $02FC
 acia_tx_buffer_read_ptr = $02FD

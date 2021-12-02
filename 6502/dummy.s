@@ -7,22 +7,37 @@ DEBUG=1
 reset:
   STZ initialization_done
   STZ VIA_PORTA
+
+; Wait until the rx buffer writes a zero at the write pointer
+.waiting:
+  LDY acia_rx_buffer_write_ptr
+  LDA acia_rx_buffer, Y
+  BNE .waiting
+  INC VIA_PORTA
+.ready:
+  LITERAL $3000
+  LITERAL acia_rx_buffer
+  ; TODO does not count as reading!
+  JSR copy_string_from_start
+  POP
   PHX
   LDX #0
 .send_byte:
-  LDA hello_world, X
-  BEQ .done
+  LDA $3000, X
+  PHP
   JSR write_transmit_byte
+  PLP
+  BEQ .done
   INX
   BRA .send_byte
 .done
   PLX
   JSR initiate_transmit
-  INC VIA_PORTA
 
-  LITERAL hello_world
   JSR print_null_terminated_string_stack
+  POP
 
+  INC VIA_PORTA
 loop:
   WAI
   JMP loop
