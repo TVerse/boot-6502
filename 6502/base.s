@@ -127,8 +127,7 @@ irq_base:
 .no_overflow:
   BRA .program_irq
 .transmit:
-  LDA #%00100000 ; TODO figure out how to properly turn this off)
-  STA VIA_IFR
+  BIT VIA_T2CL
   PHY
   JSR transmit
   PLY

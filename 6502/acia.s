@@ -59,6 +59,7 @@ initiate_transmit:
 ; Return a value instead of just initiating transmit?
 write_transmit_byte:
   PHA
+  ; Check if buffer full
   LDA acia_tx_buffer_write_ptr
   INC
   CMP acia_tx_buffer_read_ptr
@@ -79,10 +80,10 @@ write_transmit_byte:
 
 ; Called from IRQ
 ; Ignore CTS, we cannot read the line directly and transmit status is stuck on
+; TODO can AND CTS with PB6?
 transmit:
   ; Check if buffer empty
   LDA acia_tx_buffer_write_ptr
-  INC
   CMP acia_tx_buffer_read_ptr
   BEQ .empty
   ; If not, send a byte and reinit T2
@@ -94,7 +95,6 @@ transmit:
   STA VIA_T2CH
   BRA .done
 .empty:
-  LDA VIA_T1CL
   STZ acia_tx_in_progress
 .done:
   RTS

@@ -20,6 +20,9 @@ reset:
   JSR initiate_transmit
   INC VIA_PORTA
 
+  LITERAL hello_world
+  JSR print_null_terminated_string_stack
+
 loop:
   WAI
   JMP loop
