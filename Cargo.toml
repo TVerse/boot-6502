@@ -1,13 +1,24 @@
-[package]
-name = "boot-6502"
-version = "0.1.0"
-authors = ["Tim Evers <29369097+TVerse@users.noreply.github.com>"]
-edition = "2018"
+[workspace]
 
-[dependencies]
-serial-unix = "0.4.0"
-serial-core = "0.4.0"
-ctrlc = "3.2.1"
-anyhow = { version = "1.0.33", features = ["backtrace"] }
-rand = "0.8.4"
+members = [
+    "crates/boot-6502",
+    "crates/fake-6502",
+]
 
+[profile.release]
+lto = "thin"
+
+[profile.perf]
+inherits = "release"
+debug = true
+
+[profile.dev]
+opt-level = 1
+
+[profile.bench]
+inherits = "release"
+debug = true
+
+[profile.dhat]
+inherits = "release"
+debug = true
