@@ -2,7 +2,8 @@
 
 members = [
     "crates/boot-6502",
-    "crates/fake-6502",
+    "crates/emu-6502",
+    "crates/utils",
 ]
 
 [profile.release]

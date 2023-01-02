@@ -2,12 +2,17 @@ extern crate bindgen;
 
 use std::env;
 use std::path::PathBuf;
+use std::process::Command;
 
 use bindgen::CargoCallbacks;
 
 static EXTERNAL_LIB_NAME: &str = "fake6502";
 
 fn main() {
+    fake6502_bindgen();
+}
+
+fn fake6502_bindgen() {
     // This is the directory where the `c` library is located.
     let libdir_path = PathBuf::from(format!("../../{EXTERNAL_LIB_NAME}"))
         // Canonicalize the path as `rustc-link-search` requires an absolute
@@ -36,7 +41,7 @@ fn main() {
 
     // Run `clang` to compile the `hello.c` file into a `hello.o` object file.
     // Unwrap if it is not possible to spawn the process.
-    if !std::process::Command::new("clang")
+    if !Command::new("clang")
         .arg("-c")
         .arg("-o")
         .arg(&obj_path)
@@ -56,7 +61,7 @@ fn main() {
 
     // Run `ar` to generate the `lib{EXTERNAL_NAME}.a` file from the `hello.o` file.
     // Unwrap if it is not possible to spawn the process.
-    if !std::process::Command::new("ar")
+    if !Command::new("ar")
         .arg("rcs")
         .arg(lib_path)
         .arg(obj_path)
@@ -75,9 +80,10 @@ fn main() {
     let bindings = bindgen::Builder::default()
         // The input header we would like to generate
         // bindings for.
-        .header(headers_path_str)
-        .blocklist_function("fake6502_mem_read")
-        .blocklist_function("fake6502_mem_write")
+        .header("wrapper.h")
+        .allowlist_function("fake6502_reset")
+        .allowlist_function("fake6502_step")
+        .no_copy("fake6502_context")
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
         .parse_callbacks(Box::new(CargoCallbacks))
