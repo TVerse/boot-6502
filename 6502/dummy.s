@@ -8,12 +8,17 @@ reset:
   STZ initialization_done
   STZ VIA_PORTA
 
+; Send 0x55 for ready
+  LDA #$55
+  JSR write_transmit_byte
+  JSR block_transmit
 ; Wait until the rx buffer writes a zero at the write pointer
+  INC VIA_PORTA
 .waiting:
   LDY acia_rx_buffer_write_ptr
   LDA acia_rx_buffer, Y
   BNE .waiting
-  INC VIA_PORTA
+  DEC VIA_PORTA
 .ready:
   LITERAL $3000
   LITERAL acia_rx_buffer
@@ -37,7 +42,7 @@ reset:
   JSR print_null_terminated_string_stack
   POP
 
-  INC VIA_PORTA
+;  INC VIA_PORTA
 loop:
   WAI
   JMP loop

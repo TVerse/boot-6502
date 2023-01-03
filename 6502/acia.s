@@ -19,6 +19,7 @@ ACIA_STATUS_RESET_REGISTERS = ACIA_BASE + $1
 ACIA_COMMAND_REGISTER = ACIA_BASE + $2
 ACIA_CONTROL_REGISTER = ACIA_BASE + $3
 
+; 10 symbols * 16 counts/symbol
 TX_T2_PULSES = 255 ; 160 breaks in a weird way (on memcpy?) No further optimization
 
 init_acia:
@@ -49,6 +50,8 @@ init_acia:
 
   ; 1 stop bit, 8 bits, rcv baud rate, 9600 on crystal
   LDA #%00011110
+  ; 1 stop bit, 8 bits, rcv baud rate, 600 on crystal
+  LDA #%00010111
   STA ACIA_CONTROL_REGISTER
   ; No parity, normal mode, RTSB low, no tx interrupt, rx interrupt, data terminal ready (unused)
   LDA #%11001001
@@ -61,7 +64,6 @@ init_acia:
 initiate_transmit:
   BIT acia_tx_in_progress
   BMI .done
-  INC VIA_PORTA
   DEC acia_tx_in_progress
   ; Start T2 by writing to the high byte
   PHA
@@ -71,6 +73,14 @@ initiate_transmit:
   PLA
 .done:
   RTS
+
+block_transmit:
+  JSR initiate_transmit
+.block:
+  BIT acia_tx_in_progress
+  BMI .block
+  RTS
+
 
 ; Clobbers Y
 ; Return a value instead of just initiating transmit?
@@ -124,3 +134,4 @@ acia_transmit:
   STZ acia_tx_in_progress
 .done:
   RTS
+
