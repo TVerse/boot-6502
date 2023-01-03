@@ -83,6 +83,8 @@ fn fake6502_bindgen() {
         .header("wrapper.h")
         .allowlist_function("fake6502_reset")
         .allowlist_function("fake6502_step")
+        .allowlist_function("fake6502_irq")
+        .allowlist_function("fake6502_nmi")
         .no_copy("fake6502_context")
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.

@@ -2,7 +2,7 @@ mod sys;
 
 use std::marker::PhantomData;
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::process::abort;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum AccessKind {
@@ -17,29 +17,38 @@ pub struct AccessLog {
     byte: u8,
 }
 
-pub trait Addressable {
-    fn read_byte(&mut self, address: u16) -> Option<u8>;
-    fn write_byte(&mut self, address: u16, byte: u8) -> Option<()>;
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum InterruptPending {
+    IRQ,
+    NMI,
 }
 
-pub struct AddressSpace<'a> {
-    addressables: Vec<&'a mut dyn Addressable>,
+pub trait Component {
+    fn read_byte(&mut self, address: u16) -> Option<u8>;
+    fn write_byte(&mut self, address: u16, byte: u8) -> Option<()>;
+    fn tick(&mut self, _cycles: usize) -> Option<InterruptPending> {
+        None
+    }
+}
+
+pub struct Components {
+    components: Vec<Arc<Mutex<dyn Component>>>,
     log: Vec<AccessLog>,
 }
 
-impl<'a> AddressSpace<'a> {
-    pub fn new(addressables: Vec<&'a mut dyn Addressable>) -> Self {
+impl Components {
+    pub fn new(components: Vec<Arc<Mutex<dyn Component>>>) -> Self {
         Self {
-            addressables,
+            components,
             log: Vec::with_capacity(100),
         }
     }
 
     pub fn read_byte(&mut self, address: u16) -> u8 {
         let byte = self
-            .addressables
+            .components
             .iter_mut()
-            .find_map(|a| a.read_byte(address))
+            .find_map(|a| a.lock().unwrap().read_byte(address))
             .unwrap_or(0xFF);
 
         self.log.push(AccessLog {
@@ -53,9 +62,9 @@ impl<'a> AddressSpace<'a> {
 
     pub fn write_byte(&mut self, address: u16, byte: u8) {
         if self
-            .addressables
+            .components
             .iter_mut()
-            .find_map(|a| a.write_byte(address, byte))
+            .find_map(|a| a.lock().unwrap().write_byte(address, byte))
             .is_some()
         {
             self.log.push(AccessLog {
@@ -65,18 +74,36 @@ impl<'a> AddressSpace<'a> {
             })
         }
     }
+
+    pub fn tick(&mut self, cycles: usize) -> Option<InterruptPending> {
+        let interrupts: Vec<_> = self
+            .components
+            .iter_mut()
+            .map(|c| c.lock().unwrap().tick(cycles))
+            .filter_map(|x| x)
+            .collect();
+        if interrupts.is_empty() {
+            None
+        } else {
+            if interrupts.contains(&InterruptPending::NMI) {
+                Some(InterruptPending::NMI)
+            } else {
+                Some(InterruptPending::IRQ)
+            }
+        }
+    }
 }
 
 #[no_mangle]
 extern "C" fn fake6502_mem_read(context: *mut sys::fake6502_context, address: u16) -> u8 {
     unsafe {
-        let mem = &mut *((*context).state_host as *mut AddressSpace);
-        // TODO can't panic over FFI boundary
+        let mem = &mut *((*context).state_host as *mut Components);
+        // can't panic over FFI boundary
         match catch_unwind(AssertUnwindSafe(|| mem.read_byte(address))) {
             Ok(byte) => byte,
             Err(_) => {
-                println!("Didn't read byte at address {address}, aborting process");
-                abort()
+                println!("Didn't read byte at address {address}, returning 0xFF");
+                0xFF
             }
         }
     }
@@ -85,31 +112,31 @@ extern "C" fn fake6502_mem_read(context: *mut sys::fake6502_context, address: u1
 #[no_mangle]
 extern "C" fn fake6502_mem_write(context: *mut sys::fake6502_context, address: u16, val: u8) {
     unsafe {
-        let mem = &mut *((*context).state_host as *mut AddressSpace);
-        // TODO can't panic over FFI boundary
+        let mem = &mut *((*context).state_host as *mut Components);
+        // can't panic over FFI boundary
         match catch_unwind(AssertUnwindSafe(|| mem.write_byte(address, val))) {
             Ok(()) => (),
             Err(_) => {
-                println!("Didn't write byte {val} at address {address}, aborting process");
-                abort()
+                println!("Didn't write byte {val} at address {address}");
             }
         }
     }
 }
 
 #[derive(Debug)]
-pub struct Fake6502<'a> {
+pub struct Fake6502 {
     context: sys::fake6502_context,
-    _phantomdata: PhantomData<&'a mut AddressSpace<'a>>,
+    _phantomdata: PhantomData<Box<Components>>,
 }
 
-impl<'a> Fake6502<'a> {
-    pub fn new(address_space: &'a mut AddressSpace) -> Self {
-        // Reversed in drop.
+impl Fake6502 {
+    pub fn new(components: Components) -> Self {
+        let components = Box::new(components);
+        let components = Box::leak(components);
         let context = sys::fake6502_context {
             cpu: Default::default(),
             emu: Default::default(),
-            state_host: address_space as *mut AddressSpace as *mut _,
+            state_host: components as *mut Components as *mut _,
         };
         Self {
             context,
@@ -123,14 +150,39 @@ impl<'a> Fake6502<'a> {
         }
     }
 
-    pub fn step(&mut self) {
+    pub fn step(&mut self) -> Option<InterruptPending> {
+        let cycles_before = self.context.emu.clockticks;
         unsafe {
             sys::fake6502_step(&mut self.context as *mut _);
         }
+        let cycles_taken = self.context.emu.clockticks - cycles_before;
+        let cycles_taken = cycles_taken as usize;
+        self.address_space().tick(cycles_taken)
     }
 
-    pub fn address_space(&mut self) -> &mut AddressSpace {
-        unsafe { &mut *(self.context.state_host as *mut AddressSpace) }
+    pub fn start_interrupt_routine(
+        &mut self,
+        interrupt_pending: InterruptPending,
+    ) -> Option<InterruptPending> {
+        let cycles_before = self.context.emu.clockticks;
+        match interrupt_pending {
+            InterruptPending::IRQ => unsafe { sys::fake6502_irq(&mut self.context as *mut _) },
+            InterruptPending::NMI => unsafe { sys::fake6502_nmi(&mut self.context as *mut _) },
+        };
+        let cycles_taken = self.context.emu.clockticks - cycles_before;
+        let cycles_taken = cycles_taken as usize;
+        self.address_space().tick(cycles_taken)
+    }
+
+    pub fn address_space(&mut self) -> &mut Components {
+        unsafe { &mut *(self.context.state_host as *mut Components) }
+    }
+}
+
+impl Drop for Fake6502 {
+    fn drop(&mut self) {
+        let components = self.context.state_host as *mut Components;
+        let _ = unsafe {Box::from_raw(components)};
     }
 }
 
@@ -142,7 +194,7 @@ mod tests {
         rom: Vec<u8>,
     }
 
-    impl Addressable for Rom {
+    impl Component for Rom {
         fn read_byte(&mut self, address: u16) -> Option<u8> {
             if address as usize >= 0x8000 {
                 self.rom.get((address as usize) - 0x8000).copied()
@@ -160,7 +212,7 @@ mod tests {
         ram: Vec<u8>,
     }
 
-    impl Addressable for Ram {
+    impl Component for Ram {
         fn read_byte(&mut self, address: u16) -> Option<u8> {
             self.ram.get(address as usize).copied()
         }
@@ -189,12 +241,12 @@ mod tests {
         // STA #01
         rom[0x0002] = 0x85;
         rom[0x0003] = 0x01;
-        let mut rom = Rom { rom: rom.to_vec() };
+        let rom = Rom { rom: rom.to_vec() };
         let ram = [0x55; 0x4000];
-        let mut ram = Ram { ram: ram.to_vec() };
-        let addressables: Vec<&mut dyn Addressable> = vec![&mut rom, &mut ram];
-        let mut address_space = AddressSpace::new(addressables);
-        let mut fake_6502 = Fake6502::new(&mut address_space);
+        let ram = Ram { ram: ram.to_vec() };
+        let addressables: Vec<Arc<Mutex<dyn Component>>> = vec![Arc::new(Mutex::new(rom)), Arc::new(Mutex::new(ram))];
+        let address_space = Components::new(addressables);
+        let mut fake_6502 = Fake6502::new(address_space);
         fake_6502.reset();
         fake_6502.step();
         fake_6502.step();
