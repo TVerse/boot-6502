@@ -1,224 +1,228 @@
-  .include memory_map.s
+  .include "stack.s"
 
-  .org ROM_START_ADDR
-  .include stack.s
-  .include lcd.s
-  .include debug.s
+  .importzp SOFTWARE_STACK_START
+  .import INITIALIZATION_DONE
+  .import TEN_MS_COUNTER_ADDR
+  .import VIA_DDRA
+  .import VIA_DDRB
+  .importzp DEFAULT_DDRA
+  .importzp DEFAULT_DDRB
+  .import VIA_PORTA
+  .import VIA_PORTB
+  .importzp LCD_CLEAR
+  .import lcd_instruction
+  .import init_acia
+  .import print_null_terminated_string_stack
+  .import ACIA_STATUS_RESET_REGISTERS
+  .import acia_receive
+  .import VIA_IFR
+  .import acia_transmit
+  .import initialize_lcd
+  .import VIA_T2CL
+  .import delay
+  .import VIA_IER
+  .import VIA_ACR
+  .import VIA_T1CH
+  .import VIA_T1CL
+  .import reset
 
   ; Start 10ms clock, 10000 cycles @ 1MHz
   ; 2 cycles for starting the interrupt = 9998 wait = $270E
   .macro ENABLE_TIMER
-  LDA #$0E
-  STA VIA_T1CL
-  LDA #$27
-  STA VIA_T1CH
+  lda #$0E
+  sta VIA_T1CL
+  lda #$27
+  sta VIA_T1CH
 
-  LDA VIA_ACR
-  AND #%01111111
-  ORA #%01000000
-  STA VIA_ACR
+  lda VIA_ACR
+  and #%01111111
+  ora #%01000000
+  sta VIA_ACR
 
-  LDA #%11000000
-  STA VIA_IER
+  lda #%11000000
+  sta VIA_IER
   .endmacro
 
 reset_base:
   ; Reset decimal flag
-  CLD
+  cld
 
   ; Set hardware stack pointer
-  LDX #$FF
-  TXS
+  ldx #$FF
+  txs
 
   ; Set software stack pointer
-  LDX #SOFTWARE_STACK_START
+  ldx #SOFTWARE_STACK_START
 
   ; Set data direction
-  LDA #DEFAULT_DDRA
-  STA VIA_DDRA
-  LDA #DEFAULT_DDRB
-  STA VIA_DDRB
+  lda #DEFAULT_DDRA
+  sta VIA_DDRA
+  lda #DEFAULT_DDRB
+  sta VIA_DDRB
 
   ; Put ports in known state
-  STZ VIA_PORTA
-  STZ VIA_PORTB
-
-  ; Put vectors in known state
-  LDA #<rti
-  STA program_nmi
-  STA program_irq
-  LDA #>rti
-  STA program_nmi + 1
-  STA program_irq + 1
-  LDA #<loop_base
-  STA program_reset
-  LDA #>loop_base
-  STA program_reset + 1
+  stz VIA_PORTA
+  stz VIA_PORTB
 
   ; Don't send interrupt to program yet
-  LDA $FF
-  STA initialization_done
-  STA program_reset
+  lda #$FF
+  sta INITIALIZATION_DONE
 
   ; Reset counter
-  STZ ten_millisecond_counter_addr
-  STZ ten_millisecond_counter_addr + 1
+  stz TEN_MS_COUNTER_ADDR
+  stz TEN_MS_COUNTER_ADDR + 1
 
   ENABLE_TIMER
 
   ; Enable interrupts
-  CLI
+  cli
 
   ; Initialize LCD:
   ; 4-bit, 2 line, 5x8 characters, move right
-  INITIALIZE_LCD
+  jsr initialize_lcd
 
-  LDA #LCD_CLEAR
-  JSR lcd_instruction
+  lda #LCD_CLEAR
+  jsr lcd_instruction
 
-  LITERAL initialized_base
-  JSR print_null_terminated_string_stack
+  jsr init_acia
 
-  LITERAL 50
-  JSR delay
+  literal initialized_base
+  jsr print_null_terminated_string_stack
+  pop
 
-  LDA #%00000001
-  JSR lcd_instruction
+  literal 50
+  jsr delay
 
-  ; JMP (program_reset)
-  JMP reset
+  lda #%00000001
+  jsr lcd_instruction
+
+  literal 50
+  jsr delay
+
+  jmp reset
 
 nmi_base:
-  JMP (program_nmi)
+  pha
+  lda ACIA_STATUS_RESET_REGISTERS
+  and #%00001000
+  beq @done
+  phy
+  jsr acia_receive
+  ply
+@done:
+  pla
+  rti
 irq_base:
-  PHA
-  LDA VIA_IFR
-  ASL ; IRQ
-  BCC .program_irq ; Not the VIA
-  ASL ; T1
-  BCS .timer
-  ; ASL ; T2
+  pha
+  lda VIA_IFR
+  asl ; IRQ
+  bcc @program_irq ; Not the VIA
+  asl ; T1
+  bcs @timer
+  asl ; T2
+  bcs @transmit
   ; ASL ; CB1
   ; ASL ; CB2
   ; ASL ; Shift
   ; ASL ; CA1
   ; ASL ; CA2
-  BRA .program_irq
-  .timer:
-    BIT VIA_T1CL
-    INC ten_millisecond_counter_addr
-    BNE .no_overflow
-    INC ten_millisecond_counter_addr + 1
-  .no_overflow:
-    BRA .program_irq
-  .program_irq:
-    PLA
-    BIT initialization_done
-    BNE .not_done
-    JMP (program_irq)
-    .not_done:
-      RTI
-
-rti:
-  RTI
+  bra @program_irq
+@timer:
+  bit VIA_T1CL
+  inc TEN_MS_COUNTER_ADDR
+  bne @no_overflow
+  inc TEN_MS_COUNTER_ADDR + 1
+@no_overflow:
+  bra @program_irq
+@transmit:
+  bit VIA_T2CL
+  phy
+  jsr acia_transmit
+  ply
+@program_irq:
+  pla
+  bit INITIALIZATION_DONE
+  bne @not_done
+  rti
+@not_done:
+  rti
 
 loop_base:
-  WAI
-  JMP loop_base
-
-; ( 5ms_cycle_count -- )
-; Clobbers A
-delay:
-  CLC
-  LDA ten_millisecond_counter_addr
-  ADC 0, X
-  STA 0, X
-  LDA ten_millisecond_counter_addr + 1
-  ADC 1, X
-  STA 1, X
-  .loop:
-    WAI
-    LDA 0, X
-    CMP ten_millisecond_counter_addr
-    BNE .loop
-    LDA 1, X
-    CMP ten_millisecond_counter_addr + 1
-    BNE .loop
-  POP
-  RTS
+  wai
+  jmp loop_base
 
 ; ( string_pointer -- )
 ; Does not return
 error:
-  SEI
-  LDA #%00000001
-  JSR lcd_instruction
-  LITERAL error_message
-  JSR print_null_terminated_string_stack
-  LDA 0,X
-  ORA 1,X
-  BEQ .loop
+  sei
+  lda #%00000001
+  jsr lcd_instruction
+  literal error_message
+  jsr print_null_terminated_string_stack
+  lda 0,X
+  ora 1,X
+  beq @loop
   ; .has_message:
-    LDA #%11000000 ; Jump to second row
-    JSR lcd_instruction
-    JSR print_null_terminated_string_stack
-  .loop:
-    WAI
-    JMP .loop
+    lda #%11000000 ; Jump to second row
+    jsr lcd_instruction
+    jsr print_null_terminated_string_stack
+  @loop:
+    wai
+    jmp @loop
 
 error_message: .asciiz "ERROR: "
 
   ; Harder and ATM broken version
   ; Should do atomic reads into X, Y
   ; read_timer:
-  ;   LDX ten_millisecond_counter_addr + 1
-  ;   LDY ten_millisecond_counter_addr
-  ;   CPX ten_millisecond_counter_addr + 1
-  ;   BNE read_timer
-  ;   RTS
+  ;   ldx TEN_MS_COUNTER_ADDR + 1
+  ;   ldy TEN_MS_COUNTER_ADDR
+  ;   cpx TEN_MS_COUNTER_ADDR + 1
+  ;   bne read_timer
+  ;   rts
   ;
   ; ; ( 5ms_cycle_count -- )
   ; delay:
-  ;   PHY
-  ;   PHX
-  ;   JSR read_timer
-  ;   TXA
-  ;   PLX
-  ;   INX2
-  ;   STA 1, X
-  ;   TYA
-  ;   STA 0, X
-  ;   PLY
-  ;   CLC
-  ;   LDA 0, X
-  ;   ADC 2, X
-  ;   STA 2, X
-  ;   LDA 1, X
-  ;   ADC 3, X
-  ;   STA 3, X
-  ;   POP
+  ;   phy
+  ;   phx
+  ;   jsr read_timer
+  ;   txa
+  ;   plx
+  ;   inx2
+  ;   sta 1, X
+  ;   tya
+  ;   sta 0, X
+  ;   ply
+  ;   clc
+  ;   lda 0, X
+  ;   adc 2, X
+  ;   sta 2, X
+  ;   lda 1, X
+  ;   adc 3, X
+  ;   sta 3, X
+  ;   pop
   ;   .loop:
-  ;     PHY
+  ;     phy
   ;   .high_byte:
-  ;     WAI
-  ;     PHX
-  ;     JSR read_timer
-  ;     TXA
-  ;     PLX
-  ;     CMP 1, X
-  ;     BNE .high_byte
+  ;     wai
+  ;     phx
+  ;     jsr read_timer
+  ;     txa
+  ;     plx
+  ;     cmp 1, X
+  ;     bne .high_byte
   ;   .low_byte:
-  ;     TYA
-  ;     PLY
-  ;     CMP ten_millisecond_counter_addr
-  ;     BNE .loop
-  ;   POP
-  ;   RTS
+  ;     tya
+  ;     ply
+  ;     cmp TEN_MS_COUNTER_ADDR
+  ;     bne .loop
+  ;   pop
+  ;   rts
 
 initialized_base:
   .asciiz "Initialized!"
 
-  .org VECTORS_START_ADDR
+  .segment "VECTORS"
   .word nmi_base
   .word reset_base
   .word irq_base

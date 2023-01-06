@@ -1,7 +1,9 @@
+use anyhow::anyhow;
 use anyhow::Result;
 
 use boot_6502::get_default_serial;
 use rand::prelude::*;
+use serial_unix::TTYPort;
 use std::io::Read;
 use std::io::Write;
 use std::sync::atomic::AtomicBool;
@@ -9,27 +11,44 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
+const MSG: &'static [u8] = b"xHello!\0";
+
 fn main() -> Result<()> {
     println!("Opening serial port");
     let mut serial = get_default_serial()?;
     let mut rng = rand::thread_rng();
 
+    let res = ping(&mut serial);
+    serial.flush()?;
+    res
+}
+
+fn ping(serial: &mut TTYPort) -> Result<()> {
     loop {
-        println!("Generating and sending");
-        let b: u8 = rng.gen();
-        serial.write_all(&[b])?;
-        println!("Flushing");
+        println!("Waiting for signal");
         serial.flush()?;
         let mut rcvd = [0; 1];
+        serial.read_exact(&mut rcvd)?;
+        if rcvd != [0x55] {
+            return Err(anyhow!("Wrong init byte, got {rcvd:?}"));
+        }
+        println!("Generating and sending");
+        serial.write_all(MSG)?;
+        println!("Flushing");
+        serial.flush()?;
+        let mut rcvd = [0; MSG.len()];
         println!("Reading");
         serial.read_exact(&mut rcvd)?;
-        if rcvd[0] != b {
+        if rcvd == MSG {
             println!(
-                "Got the wrong byte: expected {:#04X?}, got {:#04X?}",
-                b, rcvd[0]
+                "Success! Got {:?}, {}",
+                &rcvd,
+                String::from_utf8_lossy(&rcvd)
             );
         } else {
-            println!("Success! Expected and got {:#04X?}", b);
+            println!("Got {:?}, {}", &rcvd, String::from_utf8_lossy(&rcvd));
         }
+
+        //        Ok(())
     }
 }

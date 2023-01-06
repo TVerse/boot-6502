@@ -1,57 +1,68 @@
-  .include base.s
+  .include "stack.s"
 
-  .org ROM_START_ADDR
+  .import VIA_PORTA
+  .import write_transmit_byte
+  .import blocking_transmit
+  .import INITIALIZATION_DONE
+  .import ACIA_RX_BUFFER_WRITE_PTR
+  .import ACIA_RX_BUFFER
+  .import ACIA_TX_BUFFER
+  .import copy_string_from_start
+  .import initiate_transmit
+  .import print_null_terminated_string_stack
+
+  .export reset
 
 DEBUG=1
 
 reset:
-  STZ initialization_done
+  stz INITIALIZATION_DONE
+  stz VIA_PORTA
 
-  LDA #<nmi
-  STA program_nmi
-  LDA #>nmi
-  STA program_nmi + 1
+; Send 0x55 for ready
+  lda #$55
+  jsr write_transmit_byte
+  jsr blocking_transmit
+; Wait until the rx buffer writes a zero at the write pointer
+  inc VIA_PORTA
+@waiting:
+  ldy ACIA_RX_BUFFER_WRITE_PTR
+  lda ACIA_RX_BUFFER, Y
+  bne @waiting
+  dec VIA_PORTA
+@ready:
+  literal $3000
+  literal ACIA_TX_BUFFER
+  ; TODO does not count as reading!
+  jsr copy_string_from_start
+  pop
+  phx
+  ldx #0
+@send_byte:
+  lda $3000, X
+  php
+  jsr write_transmit_byte
+  plp
+  beq @done
+  inx
+  bra @send_byte
+@done:
+  plx
+  jsr initiate_transmit
 
-  LDA #%01111111
-  STA VIA_IER
+  jsr print_null_terminated_string_stack
+  pop
 
-  ; Timer
-  ; Period of 1250 -> timer on 625 (change PB7 level every expiry)
-  ; 625 -> 623 -> 0x026F
-  ; Continuous mode, PB7 square wave
-  LDA #%11000000
-  STA VIA_ACR
-  LDA #$6F
-  STA VIA_T1CL
-  LDA #$02
-  STA VIA_T1CH
-
-  ; ACIA
-  ; 1 stop bit, 8 bits, rcv baud rate, 16x
-  LDA #%00010000
-  STA ACIA_CONTROL_REGISTER
-  ; No parity, no echo, interrupt, ready
-  LDA #%11001001
-  STA ACIA_COMMAND_REGISTER
-
+;  inc VIA_PORTA
 loop:
-  WAI
-  JMP loop
+  wai
+  jmp loop
 
 hello_world:
-  .asciiz "Hi!"
+  .asciiz "Hello, world! How are you?"
 
 nmi:
-  PHA
-  LDA ACIA_STATUS_RESET_REGISTERS
-  AND #%00001000
-  BEQ .done
-  LDA ACIA_DATA_REGISTERS
-  STA ACIA_DATA_REGISTERS
-  JSR print_char
-.done:
-  PLA
-  RTI
+  rti
 irq:
-  RTI
+  rti
 
