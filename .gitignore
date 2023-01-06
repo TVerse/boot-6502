@@ -1,6 +1,7 @@
 /target
 .idea
 6502/*.bin
+6502/build/
 *.lst
 */target
 */Cargo.lock

@@ -1,7 +1,9 @@
-  .macro DEBUG_CHAR,char
+  .import print_char
+
+  .macro DEBUG_CHAR char
     .ifdef DEBUG
       PHA
-      LDA #\char
+      LDA #char
       JSR print_char
       PLA
     .endif
@@ -11,7 +13,7 @@ byte_in_a_to_hex:
   PHX
   PHA
   TAX
-  LDA #"$"
+  LDA #'$'
   JSR print_char
   TXA
   LSR
@@ -19,18 +21,18 @@ byte_in_a_to_hex:
   LSR
   LSR
   TAX
-  LDA .byte_to_hex_table,X
+  LDA @byte_to_hex_table,X
   JSR print_char
   PLA
   PHA
   AND #%00001111
   TAX
-  LDA .byte_to_hex_table,X
+  LDA @byte_to_hex_table,X
   JSR print_char
   PLA
   PLX
   RTS
-  .byte_to_hex_table: .ascii "0123456789ABCDEF"
+  @byte_to_hex_table: .literal "0123456789ABCDEF"
 
   .macro DEBUG_A
     .ifdef DEBUG

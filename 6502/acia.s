@@ -10,14 +10,30 @@
 ;
 ; Is it possible to make the NMI overlap-safe?
 
-  .ifndef ACIA_BASE
-ACIA_BASE = $5000
-  .endif
+  .import __ACIA_START__
+  .import ACIA_TX_BUFFER_WRITE_PTR
+  .import ACIA_TX_BUFFER_READ_PTR
+  .import ACIA_RX_BUFFER_WRITE_PTR
+  .import ACIA_RX_BUFFER_READ_PTR
+  .import ACIA_TX_IN_PROGRESS
+  .import ACIA_TX_BUFFER
+  .import ACIA_RX_BUFFER
+  .import via_prep_for_transmit
+  .import VIA_T2CL
+  .import VIA_T2CH
 
-ACIA_DATA_REGISTERS = ACIA_BASE + $0
-ACIA_STATUS_RESET_REGISTERS = ACIA_BASE + $1
-ACIA_COMMAND_REGISTER = ACIA_BASE + $2
-ACIA_CONTROL_REGISTER = ACIA_BASE + $3
+  .export ACIA_STATUS_RESET_REGISTERS
+  .export acia_receive
+  .export acia_transmit
+  .export init_acia
+  .export block_transmit
+  .export initiate_transmit
+  .export write_transmit_byte
+
+ACIA_DATA_REGISTERS = __ACIA_START__ + $00
+ACIA_STATUS_RESET_REGISTERS = __ACIA_START__ + $01
+ACIA_COMMAND_REGISTER = __ACIA_START__ + $02
+ACIA_CONTROL_REGISTER = __ACIA_START__ + $03
 
 ; 10 symbols * 16 counts/symbol
 TX_T2_PULSES = 255 ; 160 breaks in a weird way (on memcpy?) No further optimization
@@ -25,28 +41,28 @@ TX_T2_PULSES = 255 ; 160 breaks in a weird way (on memcpy?) No further optimizat
 init_acia:
   ; Set buffer pointers
   LDA #$FF
-  STA acia_tx_buffer_write_ptr
-  STA acia_tx_buffer_read_ptr
-  STA acia_rx_buffer_write_ptr
-  STA acia_rx_buffer_read_ptr
+  STA ACIA_TX_BUFFER_WRITE_PTR
+  STA ACIA_TX_BUFFER_READ_PTR
+  STA ACIA_RX_BUFFER_WRITE_PTR
+  STA ACIA_RX_BUFFER_READ_PTR
 
-  STZ acia_tx_in_progress
+  STZ ACIA_TX_IN_PROGRESS
 
   ; Init rx buffer to all FF for easier testing
   LDY #0
   LDA #$FF
-.loop_rx
-  STA acia_rx_buffer
+@loop_rx:
+  STA ACIA_RX_BUFFER, Y
   INY
-  BNE .loop_rx
+  BNE @loop_rx
 
   ; Same but tx
   LDY #0
   LDA #$FE
-.loop_tx:
-  STA acia_tx_buffer
+@loop_tx:
+  STA ACIA_TX_BUFFER, Y
   INY
-  BNE .loop_tx
+  BNE @loop_tx
 
   ; 1 stop bit, 8 bits, rcv baud rate, 9600 on crystal
   LDA #%00011110
@@ -62,23 +78,23 @@ init_acia:
 
 ; Will start the transmit on the next T2 tick
 initiate_transmit:
-  BIT acia_tx_in_progress
-  BMI .done
-  DEC acia_tx_in_progress
+  BIT ACIA_TX_IN_PROGRESS
+  BMI @done
+  DEC ACIA_TX_IN_PROGRESS
   ; Start T2 by writing to the high byte
   PHA
   LDA #TX_T2_PULSES
   STA VIA_T2CL
   STZ VIA_T2CH
   PLA
-.done:
+@done:
   RTS
 
 block_transmit:
   JSR initiate_transmit
-.block:
-  BIT acia_tx_in_progress
-  BMI .block
+@block:
+  BIT ACIA_TX_IN_PROGRESS
+  BMI @block
   RTS
 
 
@@ -87,21 +103,21 @@ block_transmit:
 write_transmit_byte:
   PHA
   ; Check if buffer full
-  LDA acia_tx_buffer_write_ptr
+  LDA ACIA_TX_BUFFER_WRITE_PTR
   INC
-  CMP acia_tx_buffer_read_ptr
-  BNE .ready
+  CMP ACIA_TX_BUFFER_READ_PTR
+  BNE @ready
   ; Buffer full, initiate transmit and wait a bit
   JSR initiate_transmit
-.wait
+@wait:
   WAI
-  CMP acia_tx_buffer_read_ptr
-  BNE .wait
-.ready:
+  CMP ACIA_TX_BUFFER_READ_PTR
+  BNE @wait
+@ready:
   TAY
   PLA
-  STY acia_tx_buffer_write_ptr
-  STA acia_tx_buffer, Y
+  STY ACIA_TX_BUFFER_WRITE_PTR
+  STA ACIA_TX_BUFFER, Y
   RTS
 
 ; Called from NMI
@@ -109,9 +125,9 @@ write_transmit_byte:
 ; TODO handle overrun n stuff
 acia_receive:
   LDA ACIA_DATA_REGISTERS
-  INC acia_rx_buffer_write_ptr
-  LDY acia_rx_buffer_write_ptr
-  STA acia_rx_buffer, Y
+  INC ACIA_RX_BUFFER_WRITE_PTR
+  LDY ACIA_RX_BUFFER_WRITE_PTR
+  STA ACIA_RX_BUFFER, Y
   RTS
 
 
@@ -120,18 +136,17 @@ acia_receive:
 ; TODO can AND CTS with PB6?
 acia_transmit:
   ; Check if buffer empty
-  LDA acia_tx_buffer_write_ptr
-  CMP acia_tx_buffer_read_ptr
-  BEQ .empty
+  LDA ACIA_TX_BUFFER_WRITE_PTR
+  CMP ACIA_TX_BUFFER_READ_PTR
+  BEQ @empty
   ; If not, send a byte and reinit T2
-  INC acia_tx_buffer_read_ptr
-  LDY acia_tx_buffer_read_ptr
-  LDA acia_tx_buffer, Y
+  INC ACIA_TX_BUFFER_READ_PTR
+  LDY ACIA_TX_BUFFER_READ_PTR
+  LDA ACIA_TX_BUFFER, Y
   STA ACIA_DATA_REGISTERS
   STZ VIA_T2CH
-  BRA .done
-.empty:
-  STZ acia_tx_in_progress
-.done:
+  BRA @done
+@empty:
+  STZ ACIA_TX_IN_PROGRESS
+@done:
   RTS
-

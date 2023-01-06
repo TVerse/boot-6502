@@ -1,11 +1,22 @@
-  .include base.s
+  .include "stack.s"
 
-  .org ROM_START_ADDR
+  .import VIA_PORTA
+  .import write_transmit_byte
+  .import block_transmit
+  .import INITIALIZATION_DONE
+  .import ACIA_RX_BUFFER_WRITE_PTR
+  .import ACIA_RX_BUFFER
+  .import ACIA_TX_BUFFER
+  .import copy_string_from_start
+  .import initiate_transmit
+  .import print_null_terminated_string_stack
+
+  .export reset
 
 DEBUG=1
 
 reset:
-  STZ initialization_done
+  STZ INITIALIZATION_DONE
   STZ VIA_PORTA
 
 ; Send 0x55 for ready
@@ -14,28 +25,28 @@ reset:
   JSR block_transmit
 ; Wait until the rx buffer writes a zero at the write pointer
   INC VIA_PORTA
-.waiting:
-  LDY acia_rx_buffer_write_ptr
-  LDA acia_rx_buffer, Y
-  BNE .waiting
+@waiting:
+  LDY ACIA_RX_BUFFER_WRITE_PTR
+  LDA ACIA_RX_BUFFER, Y
+  BNE @waiting
   DEC VIA_PORTA
-.ready:
+@ready:
   LITERAL $3000
-  LITERAL acia_rx_buffer
+  LITERAL ACIA_TX_BUFFER
   ; TODO does not count as reading!
   JSR copy_string_from_start
   POP
   PHX
   LDX #0
-.send_byte:
+@send_byte:
   LDA $3000, X
   PHP
   JSR write_transmit_byte
   PLP
-  BEQ .done
+  BEQ @done
   INX
-  BRA .send_byte
-.done
+  BRA @send_byte
+@done:
   PLX
   JSR initiate_transmit
 

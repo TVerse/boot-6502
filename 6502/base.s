@@ -1,11 +1,30 @@
-  .include memory_map.s
+  .include "stack.s"
 
-  .org ROM_START_ADDR
-  .include stack.s
-  .include memory.s
-  .include via.s
-  .include acia.s
-  .include debug.s
+  .importzp SOFTWARE_STACK_START
+  .import INITIALIZATION_DONE
+  .import TEN_MS_COUNTER_ADDR
+  .import VIA_DDRA
+  .import VIA_DDRB
+  .importzp DEFAULT_DDRA
+  .importzp DEFAULT_DDRB
+  .import VIA_PORTA
+  .import VIA_PORTB
+  .importzp LCD_CLEAR
+  .import lcd_instruction
+  .import init_acia
+  .import print_null_terminated_string_stack
+  .import ACIA_STATUS_RESET_REGISTERS
+  .import acia_receive
+  .import VIA_IFR
+  .import acia_transmit
+  .import initialize_lcd
+  .import VIA_T2CL
+  .import delay
+  .import VIA_IER
+  .import VIA_ACR
+  .import VIA_T1CH
+  .import VIA_T1CL
+  .import reset
 
   ; Start 5ms clock, 5000 cycles @ 1MHz
   ; 2 cycles for starting the interrupt = 4998 wait = $1368
@@ -45,26 +64,13 @@ reset_base:
   STZ VIA_PORTA
   STZ VIA_PORTB
 
-  ; Put vectors in known state
-  LDA #<rti
-  STA program_nmi
-  STA program_irq
-  LDA #>rti
-  STA program_nmi + 1
-  STA program_irq + 1
-  LDA #<loop_base
-  STA program_reset
-  LDA #>loop_base
-  STA program_reset + 1
-
   ; Don't send interrupt to program yet
   LDA #$FF
-  STA initialization_done
-  STA program_reset
+  STA INITIALIZATION_DONE
 
   ; Reset counter
-  STZ ten_millisecond_counter_addr
-  STZ ten_millisecond_counter_addr + 1
+  STZ TEN_MS_COUNTER_ADDR
+  STZ TEN_MS_COUNTER_ADDR + 1
 
   ENABLE_TIMER
 
@@ -73,7 +79,7 @@ reset_base:
 
   ; Initialize LCD:
   ; 4-bit, 2 line, 5x8 characters, move right
-  INITIALIZE_LCD
+  JSR initialize_lcd
 
   LDA #LCD_CLEAR
   JSR lcd_instruction
@@ -99,75 +105,51 @@ nmi_base:
   PHA
   LDA ACIA_STATUS_RESET_REGISTERS
   AND #%00001000
-  BEQ .done
+  BEQ @done
   PHY
   JSR acia_receive
   PLY
-.done:
+@done:
   PLA
-  JMP (program_nmi)
+  RTI
 irq_base:
   PHA
   LDA VIA_IFR
   ASL ; IRQ
-  BCC .program_irq ; Not the VIA
+  BCC @program_irq ; Not the VIA
   ASL ; T1
-  BCS .timer
+  BCS @timer
   ASL ; T2
-  BCS .transmit
+  BCS @transmit
   ; ASL ; CB1
   ; ASL ; CB2
   ; ASL ; Shift
   ; ASL ; CA1
   ; ASL ; CA2
-  BRA .program_irq
-.timer:
+  BRA @program_irq
+@timer:
   BIT VIA_T1CL
-  INC ten_millisecond_counter_addr
-  BNE .no_overflow
-  INC ten_millisecond_counter_addr + 1
-.no_overflow:
-  BRA .program_irq
-.transmit:
+  INC TEN_MS_COUNTER_ADDR
+  BNE @no_overflow
+  INC TEN_MS_COUNTER_ADDR + 1
+@no_overflow:
+  BRA @program_irq
+@transmit:
   BIT VIA_T2CL
   PHY
   JSR acia_transmit
   PLY
-.program_irq:
+@program_irq:
   PLA
-  BIT initialization_done
-  BNE .not_done
-  JMP (program_irq)
-.not_done:
+  BIT INITIALIZATION_DONE
+  BNE @not_done
   RTI
-
-rti:
+@not_done:
   RTI
 
 loop_base:
   WAI
   JMP loop_base
-
-; ( 5ms_cycle_count -- )
-; Clobbers A
-delay:
-  CLC
-  LDA ten_millisecond_counter_addr
-  ADC 0, X
-  STA 0, X
-  LDA ten_millisecond_counter_addr + 1
-  ADC 1, X
-  STA 1, X
-  .loop:
-    WAI
-    LDA 0, X
-    CMP ten_millisecond_counter_addr
-    BNE .loop
-    LDA 1, X
-    CMP ten_millisecond_counter_addr + 1
-    BNE .loop
-  POP
-  RTS
 
 ; ( string_pointer -- )
 ; Does not return
@@ -179,23 +161,23 @@ error:
   JSR print_null_terminated_string_stack
   LDA 0,X
   ORA 1,X
-  BEQ .loop
+  BEQ @loop
   ; .has_message:
     LDA #%11000000 ; Jump to second row
     JSR lcd_instruction
     JSR print_null_terminated_string_stack
-  .loop:
+  @loop:
     WAI
-    JMP .loop
+    JMP @loop
 
 error_message: .asciiz "ERROR: "
 
   ; Harder and ATM broken version
   ; Should do atomic reads into X, Y
   ; read_timer:
-  ;   LDX ten_millisecond_counter_addr + 1
-  ;   LDY ten_millisecond_counter_addr
-  ;   CPX ten_millisecond_counter_addr + 1
+  ;   LDX TEN_MS_COUNTER_ADDR + 1
+  ;   LDY TEN_MS_COUNTER_ADDR
+  ;   CPX TEN_MS_COUNTER_ADDR + 1
   ;   BNE read_timer
   ;   RTS
   ;
@@ -232,7 +214,7 @@ error_message: .asciiz "ERROR: "
   ;   .low_byte:
   ;     TYA
   ;     PLY
-  ;     CMP ten_millisecond_counter_addr
+  ;     CMP TEN_MS_COUNTER_ADDR
   ;     BNE .loop
   ;   POP
   ;   RTS
@@ -240,7 +222,7 @@ error_message: .asciiz "ERROR: "
 initialized_base:
   .asciiz "Initialized!"
 
-  .org VECTORS_START_ADDR
+  .segment "VECTORS"
   .word nmi_base
   .word reset_base
   .word irq_base

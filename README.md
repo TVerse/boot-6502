@@ -6,6 +6,7 @@ Goal is to have some bootcode for the 6502 and a program loader from the Rpi.
 Also want to include unit test capabilities.
 
 ## 6502 memory map
+
 0x0000-0x3FFF RAM
 0x6000-0x600F 6522 VIA
 0x5000-0x5003 6551 ACIA
@@ -15,22 +16,28 @@ Also want to include unit test capabilities.
 
 ## Communication protocol.
 
-	UART via 6551.
+UART via 6551.
 
-	Response format:
-	* ACK: 0x01
-	* ACKDATA: 0x02
+### Framing
 
-	Lengths are nonzero, 0 is interpreted as 256.
+| Start frame delimiter | Data                                  | CRC    | End frame delimiter |
+|-----------------------|---------------------------------------|--------|---------------------|
+| 1 byte                | Up to 196 bytes (TODO set better max) | 1 byte | 1 byte              |
 
-	| Name | Command byte | Other bytes | Response format | | Max request length | Max response length |
-	| --- | --- | --- | --- | --- | --- |
-	| Display string | 0x00 | LEN DATA | ACK | | 258 | 1 |
-	| Write bytes | 0x01 | ADDR LEN DATA | ACK | 260 | 1 |
-	| Read bytes | 0x02 | ADDR LEN | ACKDATA DATA| 4 | 257 |
-	| JSR A | 0x03 | ADDR | ACK | 3 | 1 |
-	| JMP A | 0x04 | ADDR | ACK | 3 | 1 |
+* Start delimiter = end delimiter = 0x21 ('!')
+* Escape = 0x23 ('#')
+* CRC: 0x00 until I figure out how to do this properly
 
-	Q: ACK before or after return for JSR?
+### Payload
 
-	Q: Display String is overkill, can also do it with write/JSR.
+Data format:
+
+| Type   | Payload         |
+|--------|-----------------|
+| 1 byte | Up to 195 bytes |
+
+### Messages
+
+| Type        | Payload                |
+|-------------|------------------------|
+| Show string | Null-terminated string |

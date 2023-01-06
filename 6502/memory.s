@@ -1,3 +1,7 @@
+  .importzp N
+
+  .export copy_string_from_start
+
 ; Stack: start stop -
 ; Max 256 chars including the null or infinite loop
 ; Clobbers Y
@@ -11,11 +15,11 @@ copy_string_from_start:
   STA N + 2
   LDA 3, X
   STA N + 3
-  LDY #-1
-.loop:
+  LDY #$FF
+@loop:
   INY
   LDA (N), Y
   STA (N + 2), Y
-  BNE .loop
+  BNE @loop
   RTS
 
