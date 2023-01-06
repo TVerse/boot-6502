@@ -62,174 +62,174 @@ DEFAULT_DDRB = %10111111
 ; Requires a 10ms timer to be running
 initialize_lcd:
   ; Reset
-  LITERAL_8BIT 13
-  JSR delay
-  LDA #%00110000
-  JSR lcd_send_upper_nibble
-  LITERAL_8BIT 3
-  JSR delay
-  LDA #%00110000
-  JSR lcd_send_upper_nibble
-  LITERAL_8BIT 3
-  JSR delay
-  LDA #%00110000
-  JSR lcd_send_upper_nibble
-  LITERAL_8BIT 3
-  JSR delay
+  literal_8bit 13
+  jsr delay
+  lda #%00110000
+  jsr lcd_send_upper_nibble
+  literal_8bit 3
+  jsr delay
+  lda #%00110000
+  jsr lcd_send_upper_nibble
+  literal_8bit 3
+  jsr delay
+  lda #%00110000
+  jsr lcd_send_upper_nibble
+  literal_8bit 3
+  jsr delay
   ; Set 4bit interface
-  LDA #%00100000
-  JSR lcd_send_upper_nibble
-  LITERAL_8BIT 3
-  JSR delay
+  lda #%00100000
+  jsr lcd_send_upper_nibble
+  literal_8bit 3
+  jsr delay
 
   ; Software initialize
-  LDA #%00101000
-  JSR lcd_instruction
-  LDA #%00001000
-  JSR lcd_instruction
-  LDA #%00000001
-  JSR lcd_instruction
+  lda #%00101000
+  jsr lcd_instruction
+  lda #%00001000
+  jsr lcd_instruction
+  lda #%00000001
+  jsr lcd_instruction
 
-  LITERAL_8BIT 100
-  JSR delay
+  literal_8bit 100
+  jsr delay
 
-  LDA #%00000110
-  JSR lcd_instruction
-  RTS
+  lda #%00000110
+  jsr lcd_instruction
+  rts
 
 ; ( 5ms_cycle_count -- )
 ; Clobbers A
 delay:
-  CLC
-  LDA TEN_MS_COUNTER_ADDR
-  ADC 0, X
-  STA 0, X
-  LDA TEN_MS_COUNTER_ADDR + 1
-  ADC 1, X
-  STA 1, X
+  clc
+  lda TEN_MS_COUNTER_ADDR
+  adc 0, X
+  sta 0, X
+  lda TEN_MS_COUNTER_ADDR + 1
+  adc 1, X
+  sta 1, X
   @loop:
-    WAI
-    LDA 0, X
-    CMP TEN_MS_COUNTER_ADDR
-    BNE @loop
-    LDA 1, X
-    CMP TEN_MS_COUNTER_ADDR + 1
-    BNE @loop
-  POP
-  RTS
+    wai
+    lda 0, X
+    cmp TEN_MS_COUNTER_ADDR
+    bne @loop
+    lda 1, X
+    cmp TEN_MS_COUNTER_ADDR + 1
+    bne @loop
+  pop
+  rts
 via_prep_for_transmit:
   ; Set T2 to pulse counting mode
-  LDA VIA_ACR
-  EOR #%00100000
-  STA VIA_ACR
-  LDA #%10100000
-  STA VIA_IER
-  RTS
+  lda VIA_ACR
+  eor #%00100000
+  sta VIA_ACR
+  lda #%10100000
+  sta VIA_IER
+  rts
 
 lcd_instruction:
-  PHA
-  JSR lcd_send_upper_nibble
-  PLA
-  JSR lcd_send_lower_nibble
-  RTS
+  pha
+  jsr lcd_send_upper_nibble
+  pla
+  jsr lcd_send_lower_nibble
+  rts
 
 wait_lcd_ready:
-  PHA
-  LDA VIA_DDRB
-  PHA
-  LDA #(E | RS | RW)
-  STA VIA_DDRB
+  pha
+  lda VIA_DDRB
+  pha
+  lda #(E | RS | RW)
+  sta VIA_DDRB
   @poll:
-    LDA #RW
-    STA VIA_PORTB
-    EOR #E
-    STA VIA_PORTB
-    BIT VIA_PORTB
-    LDA #RW
-    STA VIA_PORTB
-    EOR #E
-    STA VIA_PORTB
-    BVS @poll
-  LDA #RW
-  STA VIA_PORTB
-  PLA
-  STA VIA_DDRB
-  PLA
-  RTS
+    lda #RW
+    sta VIA_PORTB
+    eor #E
+    sta VIA_PORTB
+    bit VIA_PORTB
+    lda #RW
+    sta VIA_PORTB
+    eor #E
+    sta VIA_PORTB
+    bvs @poll
+  lda #RW
+  sta VIA_PORTB
+  pla
+  sta VIA_DDRB
+  pla
+  rts
 
 lcd_send_upper_nibble:
-  LSR
-  LSR
-  AND #DATA
-  STA VIA_PORTB
-  EOR #E
-  STA VIA_PORTB
-  EOR #E
-  STA VIA_PORTB
-  RTS
+  lsr
+  lsr
+  and #DATA
+  sta VIA_PORTB
+  eor #E
+  sta VIA_PORTB
+  eor #E
+  sta VIA_PORTB
+  rts
 
 lcd_send_lower_nibble:
-  ASL
-  ASL
-  AND #DATA
-  STA VIA_PORTB
-  EOR #E
-  STA VIA_PORTB
-  EOR #E
-  STA VIA_PORTB
-  RTS
+  asl
+  asl
+  and #DATA
+  sta VIA_PORTB
+  eor #E
+  sta VIA_PORTB
+  eor #E
+  sta VIA_PORTB
+  rts
 
 print_char:
-  JSR wait_lcd_ready
-  PHA
-  LSR
-  LSR
-  AND #DATA
-  EOR #RS
-  STA VIA_PORTB
-  EOR #E
-  STA VIA_PORTB
-  EOR #E
-  STA VIA_PORTB
-  PLA
-  ASL
-  ASL
-  AND #DATA
-  EOR #RS
-  STA VIA_PORTB
-  EOR #E
-  STA VIA_PORTB
-  EOR #E
-  STA VIA_PORTB
-  RTS
+  jsr wait_lcd_ready
+  pha
+  lsr
+  lsr
+  and #DATA
+  eor #RS
+  sta VIA_PORTB
+  eor #E
+  sta VIA_PORTB
+  eor #E
+  sta VIA_PORTB
+  pla
+  asl
+  asl
+  and #DATA
+  eor #RS
+  sta VIA_PORTB
+  eor #E
+  sta VIA_PORTB
+  eor #E
+  sta VIA_PORTB
+  rts
 
 print_null_terminated_string_stack:
   @loop:
-    LDA (0,X)
-    BEQ @end
-    JSR print_char
-    INC 0,X
-    BNE @loop
-    INC 1,X
-    BRA @loop
+    lda (0,X)
+    beq @end
+    jsr print_char
+    inc 0,X
+    bne @loop
+    inc 1,X
+    bra @loop
   @end:
-    RTS
+    rts
 
 print_length_string_stack:
-  LDA 0,X
-  STA z:N + 6
-  LDA 1,X
-  STA z:N + 7
-  POP
-  LDA 0,X
-  LDY #0
+  lda 0,X
+  sta z:N + 6
+  lda 1,X
+  sta z:N + 7
+  pop
+  lda 0,X
+  ldy #0
   @loop:
-    LDA (N + 6),Y
-    JSR print_char
-    INY
-    TYA
-    CMP 0, X
-    BNE @loop
-  POP
-  RTS
+    lda (N + 6),Y
+    jsr print_char
+    iny
+    tya
+    cmp 0, X
+    bne @loop
+  pop
+  rts
 

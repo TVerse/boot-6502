@@ -2,7 +2,7 @@
 
   .import VIA_PORTA
   .import write_transmit_byte
-  .import block_transmit
+  .import blocking_transmit
   .import INITIALIZATION_DONE
   .import ACIA_RX_BUFFER_WRITE_PTR
   .import ACIA_RX_BUFFER
@@ -16,53 +16,53 @@
 DEBUG=1
 
 reset:
-  STZ INITIALIZATION_DONE
-  STZ VIA_PORTA
+  stz INITIALIZATION_DONE
+  stz VIA_PORTA
 
 ; Send 0x55 for ready
-  LDA #$55
-  JSR write_transmit_byte
-  JSR block_transmit
+  lda #$55
+  jsr write_transmit_byte
+  jsr blocking_transmit
 ; Wait until the rx buffer writes a zero at the write pointer
-  INC VIA_PORTA
+  inc VIA_PORTA
 @waiting:
-  LDY ACIA_RX_BUFFER_WRITE_PTR
-  LDA ACIA_RX_BUFFER, Y
-  BNE @waiting
-  DEC VIA_PORTA
+  ldy ACIA_RX_BUFFER_WRITE_PTR
+  lda ACIA_RX_BUFFER, Y
+  bne @waiting
+  dec VIA_PORTA
 @ready:
-  LITERAL $3000
-  LITERAL ACIA_TX_BUFFER
+  literal $3000
+  literal ACIA_TX_BUFFER
   ; TODO does not count as reading!
-  JSR copy_string_from_start
-  POP
-  PHX
-  LDX #0
+  jsr copy_string_from_start
+  pop
+  phx
+  ldx #0
 @send_byte:
-  LDA $3000, X
-  PHP
-  JSR write_transmit_byte
-  PLP
-  BEQ @done
-  INX
-  BRA @send_byte
+  lda $3000, X
+  php
+  jsr write_transmit_byte
+  plp
+  beq @done
+  inx
+  bra @send_byte
 @done:
-  PLX
-  JSR initiate_transmit
+  plx
+  jsr initiate_transmit
 
-  JSR print_null_terminated_string_stack
-  POP
+  jsr print_null_terminated_string_stack
+  pop
 
-;  INC VIA_PORTA
+;  inc VIA_PORTA
 loop:
-  WAI
-  JMP loop
+  wai
+  jmp loop
 
 hello_world:
   .asciiz "Hello, world! How are you?"
 
 nmi:
-  RTI
+  rti
 irq:
-  RTI
+  rti
 

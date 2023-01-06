@@ -26,7 +26,7 @@
   .export acia_receive
   .export acia_transmit
   .export init_acia
-  .export block_transmit
+  .export blocking_transmit
   .export initiate_transmit
   .export write_transmit_byte
 
@@ -40,95 +40,95 @@ TX_T2_PULSES = 255 ; 160 breaks in a weird way (on memcpy?) No further optimizat
 
 init_acia:
   ; Set buffer pointers
-  LDA #$FF
-  STA ACIA_TX_BUFFER_WRITE_PTR
-  STA ACIA_TX_BUFFER_READ_PTR
-  STA ACIA_RX_BUFFER_WRITE_PTR
-  STA ACIA_RX_BUFFER_READ_PTR
+  lda #$FF
+  sta ACIA_TX_BUFFER_WRITE_PTR
+  sta ACIA_TX_BUFFER_READ_PTR
+  sta ACIA_RX_BUFFER_WRITE_PTR
+  sta ACIA_RX_BUFFER_READ_PTR
 
-  STZ ACIA_TX_IN_PROGRESS
+  stz ACIA_TX_IN_PROGRESS
 
   ; Init rx buffer to all FF for easier testing
-  LDY #0
-  LDA #$FF
+  ldy #0
+  lda #$FF
 @loop_rx:
-  STA ACIA_RX_BUFFER, Y
-  INY
-  BNE @loop_rx
+  sta ACIA_RX_BUFFER, Y
+  iny
+  bne @loop_rx
 
   ; Same but tx
-  LDY #0
-  LDA #$FE
+  ldy #0
+  lda #$FE
 @loop_tx:
-  STA ACIA_TX_BUFFER, Y
-  INY
-  BNE @loop_tx
+  sta ACIA_TX_BUFFER, Y
+  iny
+  bne @loop_tx
 
   ; 1 stop bit, 8 bits, rcv baud rate, 9600 on crystal
-  LDA #%00011110
+  lda #%00011110
   ; 1 stop bit, 8 bits, rcv baud rate, 600 on crystal
-  LDA #%00010111
-  STA ACIA_CONTROL_REGISTER
+  lda #%00010111
+  sta ACIA_CONTROL_REGISTER
   ; No parity, normal mode, RTSB low, no tx interrupt, rx interrupt, data terminal ready (unused)
-  LDA #%11001001
-  STA ACIA_COMMAND_REGISTER
+  lda #%11001001
+  sta ACIA_COMMAND_REGISTER
 
-  JSR via_prep_for_transmit
-  RTS
+  jsr via_prep_for_transmit
+  rts
 
 ; Will start the transmit on the next T2 tick
 initiate_transmit:
-  BIT ACIA_TX_IN_PROGRESS
-  BMI @done
-  DEC ACIA_TX_IN_PROGRESS
+  bit ACIA_TX_IN_PROGRESS
+  bmi @done
+  dec ACIA_TX_IN_PROGRESS
   ; Start T2 by writing to the high byte
-  PHA
-  LDA #TX_T2_PULSES
-  STA VIA_T2CL
-  STZ VIA_T2CH
-  PLA
+  pha
+  lda #TX_T2_PULSES
+  sta VIA_T2CL
+  stz VIA_T2CH
+  pla
 @done:
-  RTS
+  rts
 
-block_transmit:
-  JSR initiate_transmit
+blocking_transmit:
+  jsr initiate_transmit
 @block:
-  BIT ACIA_TX_IN_PROGRESS
-  BMI @block
-  RTS
+  bit ACIA_TX_IN_PROGRESS
+  bmi @block
+  rts
 
 
 ; Clobbers Y
 ; Return a value instead of just initiating transmit?
 write_transmit_byte:
-  PHA
+  pha
   ; Check if buffer full
-  LDA ACIA_TX_BUFFER_WRITE_PTR
-  INC
-  CMP ACIA_TX_BUFFER_READ_PTR
-  BNE @ready
+  lda ACIA_TX_BUFFER_WRITE_PTR
+  inc
+  cmp ACIA_TX_BUFFER_READ_PTR
+  bne @ready
   ; Buffer full, initiate transmit and wait a bit
-  JSR initiate_transmit
+  jsr initiate_transmit
 @wait:
-  WAI
-  CMP ACIA_TX_BUFFER_READ_PTR
-  BNE @wait
+  wai
+  cmp ACIA_TX_BUFFER_READ_PTR
+  bne @wait
 @ready:
-  TAY
-  PLA
-  STY ACIA_TX_BUFFER_WRITE_PTR
-  STA ACIA_TX_BUFFER, Y
-  RTS
+  tay
+  pla
+  sty ACIA_TX_BUFFER_WRITE_PTR
+  sta ACIA_TX_BUFFER, Y
+  rts
 
 ; Called from NMI
 ; TODO set RTS line to prevent overflow
 ; TODO handle overrun n stuff
 acia_receive:
-  LDA ACIA_DATA_REGISTERS
-  INC ACIA_RX_BUFFER_WRITE_PTR
-  LDY ACIA_RX_BUFFER_WRITE_PTR
-  STA ACIA_RX_BUFFER, Y
-  RTS
+  lda ACIA_DATA_REGISTERS
+  inc ACIA_RX_BUFFER_WRITE_PTR
+  ldy ACIA_RX_BUFFER_WRITE_PTR
+  sta ACIA_RX_BUFFER, Y
+  rts
 
 
 ; Called from IRQ
@@ -136,17 +136,17 @@ acia_receive:
 ; TODO can AND CTS with PB6?
 acia_transmit:
   ; Check if buffer empty
-  LDA ACIA_TX_BUFFER_WRITE_PTR
-  CMP ACIA_TX_BUFFER_READ_PTR
-  BEQ @empty
+  lda ACIA_TX_BUFFER_WRITE_PTR
+  cmp ACIA_TX_BUFFER_READ_PTR
+  beq @empty
   ; If not, send a byte and reinit T2
-  INC ACIA_TX_BUFFER_READ_PTR
-  LDY ACIA_TX_BUFFER_READ_PTR
-  LDA ACIA_TX_BUFFER, Y
-  STA ACIA_DATA_REGISTERS
-  STZ VIA_T2CH
-  BRA @done
+  inc ACIA_TX_BUFFER_READ_PTR
+  ldy ACIA_TX_BUFFER_READ_PTR
+  lda ACIA_TX_BUFFER, Y
+  sta ACIA_DATA_REGISTERS
+  stz VIA_T2CH
+  bra @done
 @empty:
-  STZ ACIA_TX_IN_PROGRESS
+  stz ACIA_TX_IN_PROGRESS
 @done:
-  RTS
+  rts
