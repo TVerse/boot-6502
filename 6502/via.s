@@ -24,6 +24,7 @@
   .export delay
   .export DEFAULT_DDRA
   .export DEFAULT_DDRB
+  .export init_via
 
 VIA_PORTB = __VIA_START__ + $00
 VIA_PORTA = __VIA_START__ + $01

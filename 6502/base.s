@@ -16,6 +16,7 @@
   .import delay
   .import VIA_T1CL
   .import reset
+  .import init_via
 
 reset_base:
   ; Reset decimal flag
@@ -27,6 +28,8 @@ reset_base:
 
   ; Set software stack pointer
   ldx #SOFTWARE_STACK_START
+
+  jsr init_via
 
   ; Don't send interrupt to program yet
   lda #$FF

@@ -54,6 +54,7 @@ reset:
   pop
 
 ;  inc VIA_PORTA
+
 loop:
   wai
   jmp loop
