@@ -11,11 +11,12 @@
     .export ACIA_TX_BUFFER
     .export ACIA_RX_BUFFER
 
+.segment "ZP": zeropage
 SOFTWARE_STACK_START = $F5 ; Grows down
 
 N = SOFTWARE_STACK_START + 1 ; 8 bytes
-N_IRQ = N + 8; 2 bytes
 
+.segment "RAM"
 INITIALIZATION_DONE = $0200 ; 1 byte
 ; 1 byte free
 TEN_MS_COUNTER_ADDR = $0202 ; 2 bytes

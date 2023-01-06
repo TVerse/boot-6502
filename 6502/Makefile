@@ -15,7 +15,7 @@ MAP_FILE=$(TEMP_FOLDER)/$(ROM_NAME).map
 
 ASM_OBJECTS=$(ASM_SOURCES:%.s=$(TEMP_FOLDER)/%.o)
 
-ASM_SOURCES=memory_map.s memory.s debug.s stack.s via.s acia.s base.s dummy.s
+ASM_SOURCES=memory_map.s memory.s debug.s via.s acia.s lcd.s base.s dummy.s
 
 FIRMWARE_CFG=firmware.cfg
 

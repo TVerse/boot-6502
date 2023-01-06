@@ -1,8 +1,7 @@
-  .include "stack.s"
+  .include "macros.s"
 
   .import __VIA_START__
 
-  .importzp N
   .import TEN_MS_COUNTER_ADDR
 
   .export VIA_PORTB
@@ -22,14 +21,9 @@
   .export VIA_IER
   .export VIA_PORTA_NOHS
   .export via_prep_for_transmit
-  .export print_char
   .export delay
   .export DEFAULT_DDRA
   .export DEFAULT_DDRB
-  .export LCD_CLEAR
-  .export lcd_instruction
-  .export print_null_terminated_string_stack
-  .export initialize_lcd
 
 VIA_PORTB = __VIA_START__ + $00
 VIA_PORTA = __VIA_START__ + $01
@@ -48,54 +42,39 @@ VIA_IFR = __VIA_START__ + $0D
 VIA_IER = __VIA_START__ + $0E
 VIA_PORTA_NOHS = __VIA_START__ + $0F
 
-LCD_CLEAR = %00001100
-
-E  = %10000000
-RW = %00000010
-RS = %00000001
-DATA = %00111100
-
 ; DEFAULT_DDRA = %00000000
 DEFAULT_DDRA = %11111111
 DEFAULT_DDRB = %10111111
 
-; Requires a 10ms timer to be running
-initialize_lcd:
-  ; Reset
-  literal_8bit 13
-  jsr delay
-  lda #%00110000
-  jsr lcd_send_upper_nibble
-  literal_8bit 3
-  jsr delay
-  lda #%00110000
-  jsr lcd_send_upper_nibble
-  literal_8bit 3
-  jsr delay
-  lda #%00110000
-  jsr lcd_send_upper_nibble
-  literal_8bit 3
-  jsr delay
-  ; Set 4bit interface
-  lda #%00100000
-  jsr lcd_send_upper_nibble
-  literal_8bit 3
-  jsr delay
+init_via:
+ ; Set data direction
+  lda #DEFAULT_DDRA
+  sta VIA_DDRA
+  lda #DEFAULT_DDRB
+  sta VIA_DDRB
+ ; Put ports in known state
+  stz VIA_PORTA
+  stz VIA_PORTB
 
-  ; Software initialize
-  lda #%00101000
-  jsr lcd_instruction
-  lda #%00001000
-  jsr lcd_instruction
-  lda #%00000001
-  jsr lcd_instruction
+  ; Reset counter
+  stz TEN_MS_COUNTER_ADDR
+  stz TEN_MS_COUNTER_ADDR + 1
 
-  literal_8bit 100
-  jsr delay
+  ; Enable timer
+  ; Start 5ms clock, 5000 cycles @ 1MHz
+  ; 2 cycles for starting the interrupt = 4998 wait = $1368
+  lda #$0E
+  sta VIA_T1CL
+  lda #$27
+  sta VIA_T1CH
 
-  lda #%00000110
-  jsr lcd_instruction
-  rts
+  lda VIA_ACR
+  and #%01111111
+  ora #%01000000
+  sta VIA_ACR
+
+  lda #%11000000
+  sta VIA_IER
 
 ; ( 5ms_cycle_count -- )
 ; Clobbers A
@@ -117,6 +96,7 @@ delay:
     bne @loop
   pop
   rts
+
 via_prep_for_transmit:
   ; Set T2 to pulse counting mode
   lda VIA_ACR
@@ -125,111 +105,3 @@ via_prep_for_transmit:
   lda #%10100000
   sta VIA_IER
   rts
-
-lcd_instruction:
-  pha
-  jsr lcd_send_upper_nibble
-  pla
-  jsr lcd_send_lower_nibble
-  rts
-
-wait_lcd_ready:
-  pha
-  lda VIA_DDRB
-  pha
-  lda #(E | RS | RW)
-  sta VIA_DDRB
-  @poll:
-    lda #RW
-    sta VIA_PORTB
-    eor #E
-    sta VIA_PORTB
-    bit VIA_PORTB
-    lda #RW
-    sta VIA_PORTB
-    eor #E
-    sta VIA_PORTB
-    bvs @poll
-  lda #RW
-  sta VIA_PORTB
-  pla
-  sta VIA_DDRB
-  pla
-  rts
-
-lcd_send_upper_nibble:
-  lsr
-  lsr
-  and #DATA
-  sta VIA_PORTB
-  eor #E
-  sta VIA_PORTB
-  eor #E
-  sta VIA_PORTB
-  rts
-
-lcd_send_lower_nibble:
-  asl
-  asl
-  and #DATA
-  sta VIA_PORTB
-  eor #E
-  sta VIA_PORTB
-  eor #E
-  sta VIA_PORTB
-  rts
-
-print_char:
-  jsr wait_lcd_ready
-  pha
-  lsr
-  lsr
-  and #DATA
-  eor #RS
-  sta VIA_PORTB
-  eor #E
-  sta VIA_PORTB
-  eor #E
-  sta VIA_PORTB
-  pla
-  asl
-  asl
-  and #DATA
-  eor #RS
-  sta VIA_PORTB
-  eor #E
-  sta VIA_PORTB
-  eor #E
-  sta VIA_PORTB
-  rts
-
-print_null_terminated_string_stack:
-  @loop:
-    lda (0,X)
-    beq @end
-    jsr print_char
-    inc 0,X
-    bne @loop
-    inc 1,X
-    bra @loop
-  @end:
-    rts
-
-print_length_string_stack:
-  lda 0,X
-  sta z:N + 6
-  lda 1,X
-  sta z:N + 7
-  pop
-  lda 0,X
-  ldy #0
-  @loop:
-    lda (N + 6),Y
-    jsr print_char
-    iny
-    tya
-    cmp 0, X
-    bne @loop
-  pop
-  rts
-
