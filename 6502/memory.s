@@ -2,6 +2,7 @@
 
   .export copy_string_from_start
 
+  .code
 ; Stack: start stop -
 ; Max 256 chars including the null or infinite loop
 ; Clobbers Y

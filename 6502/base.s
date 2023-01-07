@@ -17,6 +17,7 @@
   .import VIA_T1CL
   .import reset
   .import init_via
+  .import VIA_PORTA
 
   .code
 

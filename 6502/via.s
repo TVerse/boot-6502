@@ -76,6 +76,7 @@ init_via:
 
   lda #%11000000
   sta VIA_IER
+  rts
 
 ; ( 5ms_cycle_count -- )
 ; Clobbers A

@@ -23,8 +23,8 @@ reset:
   lda #$55
   jsr write_transmit_byte
   jsr blocking_transmit
-; Wait until the rx buffer writes a zero at the write pointer
   inc VIA_PORTA
+; Wait until the rx buffer writes a zero at the write pointer
 @waiting:
   ldy ACIA_RX_BUFFER_WRITE_PTR
   lda ACIA_RX_BUFFER, Y
@@ -53,7 +53,7 @@ reset:
   jsr print_null_terminated_string_stack
   pop
 
-;  inc VIA_PORTA
+  inc VIA_PORTA
 
 loop:
   wai

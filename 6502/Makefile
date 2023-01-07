@@ -1,6 +1,7 @@
 TOOLS_BASE=~/coding/cc65/bin
 CA65_BINARY=$(TOOLS_BASE)/ca65
 LD65_BINARY=$(TOOLS_BASE)/ld65
+MINIPRO_BINARY=minipro
 ROM_NAME=dummy
 
 CPU_FLAG=--cpu 65c02
@@ -19,6 +20,8 @@ ASM_SOURCES=memory_map.s memory.s debug.s via.s acia.s lcd.s base.s dummy.s
 
 FIRMWARE_CFG=firmware.cfg
 
+.PHONY: list flash
+
 $(TEMP_FOLDER)/%.o: %.s
 	@mkdir -p $(TEMP_FOLDER)
 	$(CA65_BINARY) $(CA65_FLAGS) -o $@ -l $(@:.o=.lst) $<
@@ -30,12 +33,13 @@ $(ROM_FILE): $(ASM_OBJECTS) $(FIRMWARE_CFG)
 all: $(ROM_FILE)
 
 flash: $(ROM_FILE)
-	$(MINIPRO_BINARY) TODO
+	$(MINIPRO_BINARY) -p AT28C256 -w $(ROM_FILE)
+
+
 
 clean:
 	rm -f $(ROM_FILE) $(MAP_FILE) $(ASM_OBJECTS) $(ASM_OBJECTS:%.o=%.lst)
 
 
-.PHONY: list
 list:
 	@LC_ALL=C $(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/(^|\n)# Files(\n|$$)/,/(^|\n)# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$'
