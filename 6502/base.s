@@ -1,4 +1,4 @@
-  .include "macros.s"
+  .include "stack.inc"
 
   .importzp SOFTWARE_STACK_START
   .import INITIALIZATION_DONE
@@ -17,6 +17,8 @@
   .import VIA_T1CL
   .import reset
   .import init_via
+
+  .code
 
 reset_base:
   ; Reset decimal flag
@@ -112,6 +114,7 @@ loop_base:
 
 
 
+  .rodata
 initialized_base:
   .asciiz "Initialized!"
 
@@ -119,4 +122,3 @@ initialized_base:
   .word nmi_base
   .word reset_base
   .word irq_base
-

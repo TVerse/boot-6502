@@ -1,4 +1,4 @@
-  .include "macros.s"
+  .include "stack.inc"
 
   .import VIA_PORTA
   .import write_transmit_byte
@@ -59,11 +59,11 @@ loop:
   wai
   jmp loop
 
-hello_world:
-  .asciiz "Hello, world! How are you?"
-
 nmi:
   rti
 irq:
   rti
 
+  .rodata
+hello_world:
+  .asciiz "Hello, world! How are you?"

@@ -1,4 +1,4 @@
-  .include "macros.s"
+  .include "stack.inc"
 
   .importzp N
   .import delay
@@ -182,4 +182,5 @@ error:
     wai
     jmp @loop
 
+  .rodata
 error_message: .asciiz "ERROR: "

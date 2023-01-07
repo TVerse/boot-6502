@@ -29,6 +29,9 @@ $(ROM_FILE): $(ASM_OBJECTS) $(FIRMWARE_CFG)
 
 all: $(ROM_FILE)
 
+flash: $(ROM_FILE)
+	$(MINIPRO_BINARY) TODO
+
 clean:
 	rm -f $(ROM_FILE) $(MAP_FILE) $(ASM_OBJECTS) $(ASM_OBJECTS:%.o=%.lst)
 

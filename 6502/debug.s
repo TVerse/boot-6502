@@ -9,6 +9,14 @@
     .endif
   .endmacro
 
+  .macro DEBUG_A
+    .ifdef DEBUG
+      php
+      jsr byte_in_a_to_hex
+      plp
+    .endif
+  .endmacro
+
 byte_in_a_to_hex:
   phx
   pha
@@ -21,23 +29,18 @@ byte_in_a_to_hex:
   lsr
   lsr
   tax
-  lda @byte_to_hex_table,X
+  lda byte_to_hex_table,X
   jsr print_char
   pla
   pha
   and #%00001111
   tax
-  lda @byte_to_hex_table,X
+  lda byte_to_hex_table,X
   jsr print_char
   pla
   plx
   rts
-  @byte_to_hex_table: .literal "0123456789ABCDEF"
 
-  .macro DEBUG_A
-    .ifdef DEBUG
-      php
-      jsr byte_in_a_to_hex
-      plp
-    .endif
-  .endmacro
+
+  .rodata
+byte_to_hex_table: .literal "0123456789ABCDEF"

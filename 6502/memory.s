@@ -22,4 +22,3 @@ copy_string_from_start:
   sta (N + 2), Y
   bne @loop
   rts
-

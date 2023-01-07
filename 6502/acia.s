@@ -38,6 +38,8 @@ ACIA_CONTROL_REGISTER = __ACIA_START__ + $03
 ; 10 symbols * 16 counts/symbol
 TX_T2_PULSES = 180 ; 160 breaks in a weird way (on memcpy?) No further optimization
 
+.code
+
 init_acia:
   ; Set buffer pointers
   lda #$FF
