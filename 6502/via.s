@@ -1,17 +1,46 @@
 .include "stack.inc"
-.include "via.inc"
 
 .import TEN_MS_COUNTER_ADDR
+.import __VIA_START__
 
 .export via_prep_for_transmit
 .export delay
 .export DEFAULT_DDRA
 .export DEFAULT_DDRB
 .export init_via
-.export Via
+.export VIA_PORTB
+.export VIA_PORTA
+.export VIA_DDRB
+.export VIA_DDRA
+.export VIA_T1CL
+.export VIA_T1CH
+.export VIA_T1LL
+.export VIA_T1LH
+.export VIA_T2CL
+.export VIA_T2CH
+.export VIA_SR
+.export VIA_ACR
+.export VIA_PCR
+.export VIA_IFR
+.export VIA_IER
+.export VIA_PORTA_NOHS
 
-.segment "VIA"
-Via: .tag Via
+VIA_PORTB  = __VIA_START__ + $00
+VIA_PORTA  = __VIA_START__ + $01
+VIA_DDRB = __VIA_START__ + $02
+VIA_DDRA  = __VIA_START__ + $03
+VIA_T1CL = __VIA_START__ + $04
+VIA_T1CH  = __VIA_START__ + $05
+VIA_T1LL  = __VIA_START__ + $06
+VIA_T1LH  = __VIA_START__ + $07
+VIA_T2CL  = __VIA_START__ + $08
+VIA_T2CH  = __VIA_START__ + $09
+VIA_SR  = __VIA_START__ + $0A
+VIA_ACR  = __VIA_START__ + $0B
+VIA_PCR  = __VIA_START__ + $0C
+VIA_IFR  = __VIA_START__ + $0D
+VIA_IER  = __VIA_START__ + $0E
+VIA_PORTA_NOHS  = __VIA_START__ + $0F
 
 .code
 ; DEFAULT_DDRA = %00000000
@@ -21,12 +50,12 @@ DEFAULT_DDRB = %10111111
 init_via:
  ; Set data direction
     lda #DEFAULT_DDRA
-    sta Via+Via::DDRA
+    sta VIA_DDRA
     lda #DEFAULT_DDRB
-    sta Via+Via::DDRB
+    sta VIA_DDRB
  ; Put ports in known state
-    stz Via+Via::PortA
-    stz Via+Via::PortB
+    stz VIA_PORTA
+    stz VIA_PORTB
 
   ; Reset counter
     stz TEN_MS_COUNTER_ADDR
@@ -36,17 +65,17 @@ init_via:
   ; Start 5ms clock, 5000 cycles @ 1MHz
   ; 2 cycles for starting the interrupt = 4998 wait = $1368
     lda #$0E
-    sta Via+Via::T1CL
+    sta VIA_T1CL
     lda #$27
-    sta Via+Via::T1CH
+    sta VIA_T1CH
 
-    lda Via+Via::ACR
+    lda VIA_ACR
     and #%01111111
     ora #%01000000
-    sta Via+Via::ACR
+    sta VIA_ACR
 
     lda #%11000000
-    sta Via+Via::IER
+    sta VIA_IER
     rts
 
 ; ( 5ms_cycle_count -- )
@@ -72,9 +101,9 @@ delay:
 
 via_prep_for_transmit:
   ; Set T2 to pulse counting mode
-    lda Via+Via::ACR
+    lda VIA_ACR
     eor #%00100000
-    sta Via+Via::ACR
+    sta VIA_ACR
     lda #%10100000
-    sta Via+Via::IER
+    sta VIA_IER
     rts

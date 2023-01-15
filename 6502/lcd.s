@@ -1,9 +1,6 @@
 .include "stack.inc"
 .include "via.inc"
-
-.importzp N
-.import delay
-.import Via
+.include "zeropage.inc"
 
 .export LCD_CLEAR
 .export initialize_lcd
@@ -65,25 +62,25 @@ lcd_instruction:
 
 wait_lcd_ready:
     pha
-    lda Via+Via::DDRB
+    lda VIA_DDRB
     pha
     lda #(E | RS | RW)
-    sta Via+Via::DDRB
+    sta VIA_DDRB
 @poll:
     lda #RW
-    sta Via+Via::PortB
+    sta VIA_PORTB
     eor #E
-    sta Via+Via::PortB
-    bit Via+Via::PortB
+    sta VIA_PORTB
+    bit VIA_PORTB
     lda #RW
-    sta Via+Via::PortB
+    sta VIA_PORTB
     eor #E
-    sta Via+Via::PortB
+    sta VIA_PORTB
     bvs @poll
     lda #RW
-    sta Via+Via::PortB
+    sta VIA_PORTB
     pla
-    sta Via+Via::PortB
+    sta VIA_PORTB
     pla
     rts
 
@@ -91,22 +88,22 @@ lcd_send_upper_nibble:
     lsr
     lsr
     and #DATA
-    sta Via+Via::PortB
+    sta VIA_PORTB
     eor #E
-    sta Via+Via::PortB
+    sta VIA_PORTB
     eor #E
-    sta Via+Via::PortB
+    sta VIA_PORTB
     rts
 
 lcd_send_lower_nibble:
     asl
     asl
     and #DATA
-    sta Via+Via::PortB
+    sta VIA_PORTB
     eor #E
-    sta Via+Via::PortB
+    sta VIA_PORTB
     eor #E
-    sta Via+Via::PortB
+    sta VIA_PORTB
     rts
 
 print_char:
@@ -116,21 +113,21 @@ print_char:
     lsr
     and #DATA
     eor #RS
-    sta Via+Via::PortB
+    sta VIA_PORTB
     eor #E
-    sta Via+Via::PortB
+    sta VIA_PORTB
     eor #E
-    sta Via+Via::PortB
+    sta VIA_PORTB
     pla
     asl
     asl
     and #DATA
     eor #RS
-    sta Via+Via::PortB
+    sta VIA_PORTB
     eor #E
-    sta Via+Via::PortB
+    sta VIA_PORTB
     eor #E
-    sta Via+Via::PortB
+    sta VIA_PORTB
     rts
 
 print_null_terminated_string_stack:
@@ -147,14 +144,14 @@ print_null_terminated_string_stack:
 
 print_length_string_stack:
     lda 0,X
-    sta z:N + 6
+    sta ptr1
     lda 1,X
-    sta z:N + 7
+    sta ptr1
     pop
     lda 0,X
     ldy #0
 @loop:
-    lda (N + 6),Y
+    lda (ptr1),Y
     jsr print_char
     iny
     tya
@@ -162,25 +159,3 @@ print_length_string_stack:
     bne @loop
     pop
     rts
-
-; ( string_pointer -- )
-; Does not return
-error:
-    sei
-    lda #%00000001
-    jsr lcd_instruction
-    literal error_message
-    jsr print_null_terminated_string_stack
-    lda 0,X
-    ora 1,X
-    beq @loop
-  ; .has_message:
-    lda #%11000000                  ; Jump to second row
-    jsr lcd_instruction
-    jsr print_null_terminated_string_stack
-@loop:
-    wai
-    jmp @loop
-
-.rodata
-error_message: .asciiz "ERROR: "

@@ -1,20 +1,12 @@
 .include "stack.inc"
 .include "via.inc"
+.include "lcd.inc"
+.include "acia.inc"
+.include "zeropage.inc"
 
-.importzp SOFTWARE_STACK_START
 .import INITIALIZATION_DONE
 .import TEN_MS_COUNTER_ADDR
-.importzp LCD_CLEAR
-.import lcd_instruction
-.import init_acia
-.import print_null_terminated_string_stack
-.import acia_receive
-.import acia_transmit
-.import initialize_lcd
-.import delay
 .import reset
-.import init_via
-.import Via
 
 .code
 
@@ -45,7 +37,7 @@ reset_base:
     lda #LCD_CLEAR
     jsr lcd_instruction
 
-    jsr init_acia
+    jsr acia_init
 
     literal initialized_base
     jsr print_null_terminated_string_stack
@@ -68,7 +60,7 @@ nmi_base:
     and #%00001000
     beq @done
     phy
-    jsr acia_receive
+    jsr acia_receive_byte
     ply
 @done:
     pla
@@ -76,7 +68,7 @@ nmi_base:
 
 irq_base:
     pha
-    lda Via+Via::IFR
+    lda VIA_IFR
     asl                             ; IRQ
     bcc @done                       ; Not the VIA
     asl                             ; T1
@@ -90,16 +82,19 @@ irq_base:
   ; ASL ; CA2
     bra @done
 @timer:
-    bit Via+Via::T1CL
+    bit VIA_T1CL
     inc TEN_MS_COUNTER_ADDR
     bne @no_overflow
     inc TEN_MS_COUNTER_ADDR + 1
 @no_overflow:
+    phy
+    jsr acia_parse_buffer
+    ply
     bra @done
 @transmit:
-    bit Via+Via::T2CL
+    bit VIA_T2CL
     phy
-    jsr acia_transmit
+    jsr acia_transmit_byte
     ply
 @done:
     pla

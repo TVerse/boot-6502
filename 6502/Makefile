@@ -16,13 +16,15 @@ MAP_FILE=$(TEMP_FOLDER)/$(ROM_NAME).map
 
 ASM_OBJECTS=$(ASM_SOURCES:%.s=$(TEMP_FOLDER)/%.o)
 
-ASM_SOURCES=memory_map.s memory.s debug.s via.s acia.s lcd.s base.s dummy.s
+ASM_SOURCES=zeropage.s memory_map.s memory.s debug.s via.s acia.s lcd.s error.s base.s dummy.s
 
 FIRMWARE_CFG=firmware.cfg
 
 .PHONY: list flash
 
-$(TEMP_FOLDER)/%.o: %.s
+# Inefficient: rebuild all source files when *any* include file changes
+# ca65 seems to support Make dependency files
+$(TEMP_FOLDER)/%.o: %.s $(wildcard *.inc)
 	@mkdir -p $(TEMP_FOLDER)
 	$(CA65_BINARY) $(CA65_FLAGS) -o $@ -l $(@:.o=.lst) $<
 

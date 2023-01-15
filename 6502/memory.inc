@@ -1,0 +1,1 @@
+.import copy_string_from_start

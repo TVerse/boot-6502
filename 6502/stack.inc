@@ -12,7 +12,7 @@
     inx2
 .endmacro
 
-.macro ZERO
+.macro zero
     dex2
     stz 0,X
     stz 1,X
