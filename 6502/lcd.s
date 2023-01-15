@@ -1,9 +1,9 @@
   .include "stack.inc"
+  .include "via.inc"
 
   .importzp N
   .import delay
-  .import VIA_PORTB
-  .import VIA_DDRB
+  .import Via
 
   .export LCD_CLEAR
   .export initialize_lcd
@@ -65,25 +65,25 @@ lcd_instruction:
 
 wait_lcd_ready:
   pha
-  lda VIA_DDRB
+  lda Via+Via::DDRB
   pha
   lda #(E | RS | RW)
-  sta VIA_DDRB
+  sta Via+Via::DDRB
   @poll:
     lda #RW
-    sta VIA_PORTB
+    sta Via+Via::PortB
     eor #E
-    sta VIA_PORTB
-    bit VIA_PORTB
+    sta Via+Via::PortB
+    bit Via+Via::PortB
     lda #RW
-    sta VIA_PORTB
+    sta Via+Via::PortB
     eor #E
-    sta VIA_PORTB
+    sta Via+Via::PortB
     bvs @poll
   lda #RW
-  sta VIA_PORTB
+  sta Via+Via::PortB
   pla
-  sta VIA_DDRB
+  sta Via+Via::PortB
   pla
   rts
 
@@ -91,22 +91,22 @@ lcd_send_upper_nibble:
   lsr
   lsr
   and #DATA
-  sta VIA_PORTB
+  sta Via+Via::PortB
   eor #E
-  sta VIA_PORTB
+  sta Via+Via::PortB
   eor #E
-  sta VIA_PORTB
+  sta Via+Via::PortB
   rts
 
 lcd_send_lower_nibble:
   asl
   asl
   and #DATA
-  sta VIA_PORTB
+  sta Via+Via::PortB
   eor #E
-  sta VIA_PORTB
+  sta Via+Via::PortB
   eor #E
-  sta VIA_PORTB
+  sta Via+Via::PortB
   rts
 
 print_char:
@@ -116,21 +116,21 @@ print_char:
   lsr
   and #DATA
   eor #RS
-  sta VIA_PORTB
+  sta Via+Via::PortB
   eor #E
-  sta VIA_PORTB
+  sta Via+Via::PortB
   eor #E
-  sta VIA_PORTB
+  sta Via+Via::PortB
   pla
   asl
   asl
   and #DATA
   eor #RS
-  sta VIA_PORTB
+  sta Via+Via::PortB
   eor #E
-  sta VIA_PORTB
+  sta Via+Via::PortB
   eor #E
-  sta VIA_PORTB
+  sta Via+Via::PortB
   rts
 
 print_null_terminated_string_stack:

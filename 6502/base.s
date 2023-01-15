@@ -1,4 +1,5 @@
   .include "stack.inc"
+  .include "via.inc"
 
   .importzp SOFTWARE_STACK_START
   .import INITIALIZATION_DONE
@@ -7,17 +8,13 @@
   .import lcd_instruction
   .import init_acia
   .import print_null_terminated_string_stack
-  .import ACIA_STATUS_RESET_REGISTER
   .import acia_receive
-  .import VIA_IFR
   .import acia_transmit
   .import initialize_lcd
-  .import VIA_T2CL
   .import delay
-  .import VIA_T1CL
   .import reset
   .import init_via
-  .import VIA_PORTA
+  .import Via
 
   .code
 
@@ -67,7 +64,7 @@ reset_base:
 
 nmi_base:
   pha
-  lda ACIA_STATUS_RESET_REGISTER
+;  lda ACIA_STATUS_RESET_REGISTER
   and #%00001000
   beq @done
   phy
@@ -79,7 +76,7 @@ nmi_base:
 
 irq_base:
   pha
-  lda VIA_IFR
+  lda Via+Via::IFR
   asl                             ; IRQ
   bcc @done                       ; Not the VIA
   asl                             ; T1
@@ -93,14 +90,14 @@ irq_base:
   ; ASL ; CA2
   bra @done
 @timer:
-  bit VIA_T1CL
+  bit Via+Via::T1CL
   inc TEN_MS_COUNTER_ADDR
   bne @no_overflow
   inc TEN_MS_COUNTER_ADDR + 1
 @no_overflow:
   bra @done
 @transmit:
-  bit VIA_T2CL
+  bit Via+Via::T2CL
   phy
   jsr acia_transmit
   ply

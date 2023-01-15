@@ -5,9 +5,11 @@ authors = ["Tim Evers <29369097+TVerse@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
-serial-unix = "0.4.0"
-serial-core = "0.4.0"
-ctrlc = "3.2.4"
 anyhow = { version = "1.0.68", features = ["backtrace"] }
-rand = "0.8.5"
+tokio-serial = { version = "5.4.4", features = ["rt"] }
+tokio = { version = "1.24.1", features = ["full"] }
+tokio-stream = { version = "0.1.11", features = ["tokio-util"] }
+tokio-util = { version = "0.7.4", features = ["codec"] }
 
+[dev-dependencies]
+proptest = "1.0.0"

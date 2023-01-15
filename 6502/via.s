@@ -1,48 +1,19 @@
   .include "stack.inc"
-
-  .import __VIA_START__
+  .include "via.inc"
 
   .import TEN_MS_COUNTER_ADDR
 
-  .export VIA_PORTB
-  .export VIA_PORTA
-  .export VIA_DDRB
-  .export VIA_DDRA
-  .export VIA_T1CL
-  .export VIA_T1CH
-  .export VIA_T1LL
-  .export VIA_T1LH
-  .export VIA_T2CL
-  .export VIA_T2CH
-  .export VIA_SR
-  .export VIA_ACR
-  .export VIA_PCR
-  .export VIA_IFR
-  .export VIA_IER
-  .export VIA_PORTA_NOHS
   .export via_prep_for_transmit
   .export delay
   .export DEFAULT_DDRA
   .export DEFAULT_DDRB
   .export init_via
+  .export Via
 
-VIA_PORTB = __VIA_START__ + $00
-VIA_PORTA = __VIA_START__ + $01
-VIA_DDRB = __VIA_START__ + $02
-VIA_DDRA = __VIA_START__ + $03
-VIA_T1CL = __VIA_START__ + $04
-VIA_T1CH = __VIA_START__ + $05
-VIA_T1LL = __VIA_START__ + $06
-VIA_T1LH = __VIA_START__ + $07
-VIA_T2CL = __VIA_START__ + $08
-VIA_T2CH = __VIA_START__ + $09
-VIA_SR = __VIA_START__ + $0A
-VIA_ACR = __VIA_START__ + $0B
-VIA_PCR = __VIA_START__ + $0C
-VIA_IFR = __VIA_START__ + $0D
-VIA_IER = __VIA_START__ + $0E
-VIA_PORTA_NOHS = __VIA_START__ + $0F
+.segment "VIA"
+Via: .tag Via
 
+.code
 ; DEFAULT_DDRA = %00000000
 DEFAULT_DDRA = %11111111
 DEFAULT_DDRB = %10111111
@@ -50,12 +21,12 @@ DEFAULT_DDRB = %10111111
 init_via:
  ; Set data direction
   lda #DEFAULT_DDRA
-  sta VIA_DDRA
+  sta Via+Via::DDRA
   lda #DEFAULT_DDRB
-  sta VIA_DDRB
+  sta Via+Via::DDRB
  ; Put ports in known state
-  stz VIA_PORTA
-  stz VIA_PORTB
+  stz Via+Via::PortA
+  stz Via+Via::PortB
 
   ; Reset counter
   stz TEN_MS_COUNTER_ADDR
@@ -65,17 +36,17 @@ init_via:
   ; Start 5ms clock, 5000 cycles @ 1MHz
   ; 2 cycles for starting the interrupt = 4998 wait = $1368
   lda #$0E
-  sta VIA_T1CL
+  sta Via+Via::T1CL
   lda #$27
-  sta VIA_T1CH
+  sta Via+Via::T1CH
 
-  lda VIA_ACR
+  lda Via+Via::ACR
   and #%01111111
   ora #%01000000
-  sta VIA_ACR
+  sta Via+Via::ACR
 
   lda #%11000000
-  sta VIA_IER
+  sta Via+Via::IER
   rts
 
 ; ( 5ms_cycle_count -- )
@@ -101,9 +72,9 @@ delay:
 
 via_prep_for_transmit:
   ; Set T2 to pulse counting mode
-  lda VIA_ACR
+  lda Via+Via::ACR
   eor #%00100000
-  sta VIA_ACR
+  sta Via+Via::ACR
   lda #%10100000
-  sta VIA_IER
+  sta Via+Via::IER
   rts

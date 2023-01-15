@@ -1,15 +1,13 @@
   .include "stack.inc"
+  .include "via.inc"
 
-  .import VIA_PORTA
   .import write_transmit_byte
   .import blocking_transmit
   .import INITIALIZATION_DONE
-  .import ACIA_RX_BUFFER_WRITE_PTR
-  .import ACIA_RX_BUFFER
-  .import ACIA_TX_BUFFER
   .import copy_string_from_start
   .import initiate_transmit
   .import print_null_terminated_string_stack
+  .import Via
 
   .export reset
 
@@ -17,22 +15,22 @@ DEBUG=1
 
 reset:
   stz INITIALIZATION_DONE
-  stz VIA_PORTA
+  stz Via+Via::PortA
 
 ; Send 0x55 for ready
   lda #$55
   jsr write_transmit_byte
   jsr blocking_transmit
-  inc VIA_PORTA
+  inc Via+Via::PortA
 ; Wait until the rx buffer writes a zero at the write pointer
 @waiting:
-  ldy ACIA_RX_BUFFER_WRITE_PTR
-  lda ACIA_RX_BUFFER, Y
+;  ldy AciaData::RxBufferWritePtr
+;  lda ACIA_RX_BUFFER, Y
   bne @waiting
-  dec VIA_PORTA
+  dec Via+Via::PortA
 @ready:
   literal $3000
-  literal ACIA_TX_BUFFER
+;  literal ACIA_TX_BUFFER
   ; TODO does not count as reading!
   jsr copy_string_from_start
   pop
@@ -53,7 +51,7 @@ reset:
   jsr print_null_terminated_string_stack
   pop
 
-  inc VIA_PORTA
+  inc Via+Via::PortA
 
 loop:
   wai
