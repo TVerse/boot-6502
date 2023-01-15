@@ -1,49 +1,49 @@
-  .macro inx2
-     inx
-     inx
-  .endmacro
+.macro inx2
+    inx
+    inx
+.endmacro
 
-  .macro dex2
-     dex
-     dex
-  .endmacro
+.macro dex2
+    dex
+    dex
+.endmacro
 
-  .macro pop
-     inx2
-  .endmacro
+.macro pop
+    inx2
+.endmacro
 
-  .macro ZERO
+.macro ZERO
     dex2
     stz 0,X
     stz 1,X
-  .endmacro
+.endmacro
 
-  .macro literal lit
+.macro literal lit
     dex2
     lda #<lit
     sta 0,X
     lda #>lit
     sta 1,X
-  .endmacro
+.endmacro
 
-  .macro literal_8bit lit
+.macro literal_8bit lit
     dex2
     lda #lit
     sta 0,X
     stz 1,X
-  .endmacro
+.endmacro
 
-  .macro at_address addr
+.macro at_address addr
     dex2
     lda addr
     sta 0,X
     lda addr + 1
     sta 1,X
-  .endmacro
+.endmacro
 
-  .macro at_address_8bit addr
+.macro at_address_8bit addr
     dex2
     lda addr
     sta 0,X
     stz 1,X
-  .endmacro
+.endmacro
