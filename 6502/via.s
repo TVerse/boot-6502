@@ -42,6 +42,10 @@ VIA_IFR  = __VIA_START__ + $0D
 VIA_IER  = __VIA_START__ + $0E
 VIA_PORTA_NOHS  = __VIA_START__ + $0F
 
+  ; Start 5ms clock, 10000 cycles @ 1MHz
+  ; 2 cycles for starting the interrupt = 9998 wait = $270E
+TIMER_CYCLES = $270E
+
 .code
 ; DEFAULT_DDRA = %00000000
 DEFAULT_DDRA = %11111111
@@ -62,11 +66,9 @@ init_via:
     stz TEN_MS_COUNTER_ADDR + 1
 
   ; Enable timer
-  ; Start 5ms clock, 5000 cycles @ 1MHz
-  ; 2 cycles for starting the interrupt = 4998 wait = $1368
-    lda #$0E
+    lda #<TIMER_CYCLES
     sta VIA_T1CL
-    lda #$27
+    lda #>TIMER_CYCLES
     sta VIA_T1CH
 
     lda VIA_ACR
@@ -78,7 +80,7 @@ init_via:
     sta VIA_IER
     rts
 
-; ( 5ms_cycle_count -- )
+; ( 10ms_cycle_count -- )
 ; Clobbers A
 delay:
     clc

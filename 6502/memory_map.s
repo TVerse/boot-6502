@@ -3,4 +3,6 @@
 
 .data
 INITIALIZATION_DONE: .byte 0
+
+.bss
 TEN_MS_COUNTER_ADDR: .word 0

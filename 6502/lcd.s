@@ -12,7 +12,7 @@ LCD_CLEAR = %00001100
 
 E  = %10000000
 RW = %00000010
-    RS = %00000001
+RS = %00000001
 DATA = %00111100
 
 ; Requires a 10ms timer to be running
