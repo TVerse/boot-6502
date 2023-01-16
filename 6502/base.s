@@ -3,6 +3,7 @@
 .include "lcd.inc"
 .include "acia.inc"
 .include "zeropage.inc"
+.include "memory.inc"
 
 .import INITIALIZATION_DONE
 .import TEN_MS_COUNTER_ADDR
@@ -17,6 +18,9 @@ reset_base:
   ; Set hardware stack pointer
     ldx #$FF
     txs
+
+    ; Copy data segment
+    jsr copy_data
 
   ; Set software stack pointer
     ldx #SOFTWARE_STACK_START

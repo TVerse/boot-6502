@@ -21,9 +21,70 @@
 .export acia_receive_byte
 .export acia_parse_buffer
 
-.enum RTSbEnabled
-Disabled = 0
-Enabled = 1
+.enum StopBits
+One= %00000000
+Other= %10000000
+.endenum
+
+.enum WordLength
+Eight = %00000000
+Seven = %00100000
+Six = %01000000
+Five = %01100000
+.endenum
+
+.enum ClockSource
+External = %00000000
+BaudRateGenerator = %00010000
+.endenum
+
+.enum BaudRate
+ExternalX16 = 0
+B50 = 1
+B75 = 2
+B109 = 3
+B134 = 4
+B150 = 5
+B300 = 6
+B600 = 7
+B1200 = 8
+B1800 = 9
+B2400 = 10
+B3600 = 11
+B4800 = 12
+B7200 = 13
+B9600 = 14
+B19200 = 15
+.endenum
+
+.enum ParityCheck
+NoParity = %00000000
+OddBoth = %00100000
+EvenBoth = %01100000
+MarkTransmitNoCheck = %10100000
+SpaceTransmitNoCheck = %11100000
+.endenum
+
+.enum EchoMode
+Normal = %00000000
+Echo = %00010000
+.endenum
+
+.enum TransmitControls
+NoInterruptRTSbHigh = %00000000
+; InterruptEnabledRTSLow = %00000100 ; TX interrupts broken!
+NoInterruptRTSbLow = %00001000
+NoInterruptRTSbLowTransmitBreak = %00001100
+.endenum
+
+.enum ReceiverInterrupt
+Enable = %00000000
+Disable = %00000010
+.endenum
+
+.enum DataTerminalReady
+Disable = %00000000
+Enable = %00000001
 .endenum
 
 .enum TransmissionState
@@ -140,13 +201,9 @@ acia_init:
     iny
     bne @loop_tx
 
-  ; 1 stop bit, 8 bits, rcv baud rate, 9600 on crystal
-    lda #%00011110
-  ; 1 stop bit, 8 bits, rcv baud rate, 600 on crystal
-    lda #%00010111
+    lda #(StopBits::One | WordLength::Eight | ClockSource::BaudRateGenerator | BaudRate::B600)
     sta ACIA_CONTROL
-  ; No parity, normal mode, RTSB low, no tx interrupt, rx interrupt, data terminal ready (unused)
-    lda #%11001001
+    lda #(ParityCheck::NoParity | EchoMode::Normal | TransmitControls::NoInterruptRTSbLow | ReceiverInterrupt::Enable | DataTerminalReady::Disable)
     sta ACIA_COMMAND
 
     jsr via_prep_for_transmit

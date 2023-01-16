@@ -1,8 +1,51 @@
 .include "zeropage.inc"
 
+.import __DATA_LOAD__
+.import __DATA_RUN__
+.import __DATA_SIZE__
+
 .export copy_string_from_start
+.export copy_data
 
 .code
+
+; Clobbers A, X, Y
+copy_data:
+    ; Source pointer
+    lda #<__DATA_LOAD__
+    sta ptr1
+    lda #>__DATA_LOAD__
+    sta ptr1 + 1
+    ; Target pointer
+    lda #<__DATA_RUN__
+    sta ptr2 + 1
+    lda #>__DATA_RUN__
+    sta ptr2 + 1
+
+    ldx #<~__DATA_SIZE__
+    lda #>~__DATA_SIZE__
+    sta tmp1
+    ldy #$00
+
+@bump_low_counter:
+    inx
+    beq @bump_high_counter
+
+@copy_loop:
+    lda (ptr1), y
+    sta (ptr2), y
+    iny
+    bne @bump_low_counter
+    inc ptr1+1
+    inc ptr2+1
+    bra @bump_low_counter
+
+@bump_high_counter:
+    inc tmp1
+    bne @copy_loop
+
+    rts
+
 ; Stack: start stop -
 ; Max 256 chars including the null or infinite loop
 ; Clobbers Y

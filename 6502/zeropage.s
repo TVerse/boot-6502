@@ -1,5 +1,6 @@
 .export SOFTWARE_STACK_START
 .export ptr1, ptr2, ptr3
+.export tmp1
 
 .zeropage
 STACK_TOP: .res $7F
@@ -10,3 +11,4 @@ SOFTWARE_STACK_START: .res 1                              ; Actual size $80
 ptr1: .res 2
 ptr2: .res 2
 ptr3: .res 2
+tmp1: .res 1
