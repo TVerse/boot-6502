@@ -55,6 +55,11 @@ END_BYTE = ')'
 ESCAPE_BYTE = $5C ; \
 ESCAPED_XOR = $20
 
+.enum FrameType
+Echo = $01
+Echoed = $02
+.endenum
+
 .data
 ; One byte with page-aligned buffers. (TODO not needed with indexed addressing?)
 ; Both pointers are use-then-increment (so pointing past the last byte read/written)
@@ -70,6 +75,11 @@ ACIA_RX_FRAME_WRITE_IDX: .byte $00
 ACIA_RX_FRAME_LEN: .byte $00
 ACIA_TX_FRAME_READ_IDX: .byte $00
 ACIA_TX_FRAME_WRITE_IDX: .byte $00
+
+; X is needed for jump, so handlers *must* pull it off the stack
+ACIA_PAYLOAD_HANDLERS:
+Echo: .word _acia_echo_handler
+Echoed: .word _acia_null_handler
 
 .bss
 RX_TYPE: .res 1
@@ -99,6 +109,7 @@ loop:
 
 .macro tx_frame_checks
 .local done
+    pha
     ; Block when transmit is already in progress
     tx_block_until_done
     ; Verify room in buffer
@@ -107,6 +118,7 @@ loop:
     literal tx_buffer_full_msg
     jmp error
 done:
+    pla
 .endmacro
 
 ; TODO constructor
@@ -140,19 +152,24 @@ acia_init:
     jsr via_prep_for_transmit
     rts
 
+; No use, no clobber
 acia_new_transmit:
     ; Could probably also just allow writes as long as they are behind the write ptr (or transmit is done)
     tx_block_until_done
     stz ACIA_TX_FRAME_WRITE_IDX
     rts
 
+; Uses A, no clobber
 acia_add_byte_for_transmit:
     tx_frame_checks
+    phy
     ldy ACIA_TX_FRAME_WRITE_IDX
     sta ACIA_TX_FRAME, Y
     inc ACIA_TX_FRAME_WRITE_IDX
+    ply
     rts
 
+; Clobbers A
 acia_start_transmit:
     tx_block_until_done
     lda #TransmissionState::Primed
@@ -316,3 +333,44 @@ acia_parse_buffer:
     sta ACIA_RX_FRAME, Y
     inc ACIA_RX_FRAME_WRITE_IDX
     jmp acia_parse_buffer
+
+acia_mark_message_handled:
+    lda #ReceiveDecodeState::Waiting
+    sta ACIA_RECEIVE_DECODE_STATE
+    rts
+
+acia_block_handle_message:
+@block:
+    lda ACIA_RECEIVE_DECODE_STATE
+    cmp #ReceiveDecodeState::Done
+    bne @block
+    ; RX_TYPE x 2 since addresses are words
+    lda RX_TYPE
+    clc
+    adc RX_TYPE
+    phx
+    tax
+    phy
+    jsr _acia_jump_to_handler
+    ply
+    jsr acia_mark_message_handled
+    rts
+
+_acia_jump_to_handler:
+    jmp (ACIA_PAYLOAD_HANDLERS, X)
+
+_acia_null_handler:
+    plx
+    rts
+
+_acia_echo_handler:
+    plx
+    jsr acia_new_transmit
+    ldy #0
+@loop:
+    lda ACIA_RX_FRAME, Y
+    jsr acia_add_byte_for_transmit
+    iny
+    cpy ACIA_RX_FRAME_LEN
+    bne @loop
+    rts
