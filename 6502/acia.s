@@ -20,6 +20,7 @@
 .export acia_transmit_byte
 .export acia_receive_byte
 .export acia_parse_buffer
+.export acia_block_handle_message
 
 .enum StopBits
 One= %00000000
