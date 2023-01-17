@@ -2,7 +2,7 @@ TOOLS_BASE=~/coding/cc65/bin
 CA65_BINARY=$(TOOLS_BASE)/ca65
 LD65_BINARY=$(TOOLS_BASE)/ld65
 MINIPRO_BINARY=minipro
-ROM_NAME=dummy
+ROM_NAME=kernel
 
 CPU_FLAG=--cpu 65c02
 
@@ -16,7 +16,7 @@ MAP_FILE=$(TEMP_FOLDER)/$(ROM_NAME).map
 
 ASM_OBJECTS=$(ASM_SOURCES:%.s=$(TEMP_FOLDER)/%.o)
 
-ASM_SOURCES=zeropage.s memory_map.s memory.s debug.s via.s acia.s lcd.s error.s base.s dummy.s
+ASM_SOURCES=zeropage.s memory_map.s memory.s debug.s via.s acia.s lcd.s error.s base.s
 
 FIRMWARE_CFG=firmware.cfg
 

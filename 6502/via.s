@@ -61,7 +61,7 @@ init_via:
     stz VIA_PORTA
     stz VIA_PORTB
 
-  ; Reset counter
+  ; Reset counter (should not be needed with .data)
     stz TEN_MS_COUNTER_ADDR
     stz TEN_MS_COUNTER_ADDR + 1
 

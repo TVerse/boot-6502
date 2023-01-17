@@ -5,9 +5,7 @@
 .include "zeropage.inc"
 .include "memory.inc"
 
-.import INITIALIZATION_DONE
 .import TEN_MS_COUNTER_ADDR
-.import reset
 
 .code
 
@@ -26,10 +24,6 @@ reset_base:
     ldx #SOFTWARE_STACK_START
 
     jsr init_via
-
-  ; Don't send interrupt to program yet
-    lda #$FF
-    sta INITIALIZATION_DONE
 
   ; Enable interrupts
     cli
@@ -56,7 +50,10 @@ reset_base:
     literal 50
     jsr delay
 
-    jmp reset
+loop:
+    jsr acia_block_handle_message
+    wai
+    jmp loop
 
 nmi_base:
     pha
@@ -102,7 +99,6 @@ irq_base:
     ply
 @done:
     pla
-    bit INITIALIZATION_DONE
     rti
 
 loop_base:
