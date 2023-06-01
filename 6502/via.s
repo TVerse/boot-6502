@@ -45,10 +45,12 @@ VIA_PORTA_NOHS  = __VIA_START__ + $0F
   ; Start 5ms clock, 10000 cycles @ 1MHz
   ; 2 cycles for starting the interrupt = 9998 wait = $270E
 TIMER_CYCLES = $270E
+;TIMER_CYCLES = $FFFF
 
 .code
 ; DEFAULT_DDRA = %00000000
 DEFAULT_DDRA = %11111111
+; PB6 for TX pulse count, rest LCD
 DEFAULT_DDRB = %10111111
 
 init_via:
@@ -83,6 +85,7 @@ init_via:
 ; ( 10ms_cycle_count -- )
 ; Clobbers A
 delay:
+    inc VIA_PORTA
     clc
     lda TEN_MS_COUNTER_ADDR
     adc 0, X
@@ -92,6 +95,7 @@ delay:
     sta 1, X
 @loop:
     wai
+    inc VIA_PORTA
     lda 0, X
     cmp TEN_MS_COUNTER_ADDR
     bne @loop

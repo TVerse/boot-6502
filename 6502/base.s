@@ -18,12 +18,14 @@ reset_base:
     txs
 
     ; Copy data segment
-    jsr copy_data
+    ;jsr copy_data
 
   ; Set software stack pointer
     ldx #SOFTWARE_STACK_START
 
     jsr init_via
+
+    inc VIA_PORTA
 
   ; Enable interrupts
     cli
@@ -35,7 +37,7 @@ reset_base:
     lda #LCD_CLEAR
     jsr lcd_instruction
 
-    jsr acia_init
+    ;jsr acia_init
 
     literal initialized_base
     jsr print_null_terminated_string_stack
@@ -58,7 +60,7 @@ loop:
 nmi_base:
     pha
 ;  lda ACIA_STATUS_RESET_REGISTER
-    and #%00001000
+;    and #%00001000
     beq @done
     phy
     jsr acia_receive_byte
@@ -75,7 +77,7 @@ irq_base:
     asl                             ; T1
     bcs @timer
     asl                             ; T2
-    bcs @transmit
+    ;bcs @transmit
   ; ASL ; CB1
   ; ASL ; CB2
   ; ASL ; Shift
@@ -83,19 +85,20 @@ irq_base:
   ; ASL ; CA2
     bra @done
 @timer:
+    inc VIA_PORTA
     bit VIA_T1CL
     inc TEN_MS_COUNTER_ADDR
     bne @no_overflow
     inc TEN_MS_COUNTER_ADDR + 1
 @no_overflow:
     phy
-    jsr acia_parse_buffer
+    ;jsr acia_parse_buffer
     ply
     bra @done
 @transmit:
     bit VIA_T2CL
     phy
-    jsr acia_transmit_byte
+    ;jsr acia_transmit_byte
     ply
 @done:
     pla

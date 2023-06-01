@@ -8,6 +8,7 @@
 .export lcd_instruction
 .export print_null_terminated_string_stack
 
+.bss
 LCD_CLEAR = %00001100
 
 E  = %10000000
@@ -15,11 +16,15 @@ RW = %00000010
 RS = %00000001
 DATA = %00111100
 
+.code
+
 ; Requires a 10ms timer to be running
 initialize_lcd:
   ; Reset
+    inc VIA_PORTA
     literal_8bit 13
     jsr delay
+    inc VIA_PORTA
     lda #%00110000
     jsr lcd_send_upper_nibble
     literal_8bit 3
