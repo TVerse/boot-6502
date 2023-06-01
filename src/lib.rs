@@ -143,7 +143,7 @@ impl Payload {
     pub fn deserialize(type_byte: u8, data: Vec<u8>) -> Option<Self> {
         match type_byte {
             0x01 => Some(Self::Echo(data)),
-            0x02 => Some(Self::Echo(data)),
+            0x02 => Some(Self::Echoed(data)),
             _ => {
                 println!("Got unknown payload type byte 0x{type_byte:02x}");
                 None

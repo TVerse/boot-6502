@@ -5,11 +5,11 @@ authors = ["Tim Evers <29369097+TVerse@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
-anyhow = { version = "1.0.68", features = ["backtrace"] }
+anyhow = { version = "1.0.71", features = ["backtrace"] }
 tokio-serial = { version = "5.4.4", features = ["rt"] }
-tokio = { version = "1.24.1", features = ["full"] }
-tokio-stream = { version = "0.1.11", features = ["tokio-util"] }
-tokio-util = { version = "0.7.4", features = ["codec"] }
+tokio = { version = "1.28.2", features = ["full"] }
+tokio-stream = { version = "0.1.14", features = ["tokio-util"] }
+tokio-util = { version = "0.7.8", features = ["codec"] }
 
 [dev-dependencies]
-proptest = "1.0.0"
+proptest = "1.2.0"
