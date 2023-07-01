@@ -22,11 +22,11 @@ async fn main() -> Result<()> {
 
 async fn echo(serial: &mut SerialStream) -> Result<()> {
     let mut deserializer = FrameDeserializer::default();
+    let frame = Frame::new(Payload::Echo(MSG.to_vec()).serialize());
+    serial.write(&frame.serialize()).await?;
+    let mut buf = Vec::new();
     loop {
-        let frame = Frame::new(Payload::Echo(MSG.to_vec()).serialize());
-        serial.write(&frame.serialize()).await?;
         let mut sleep = pin!(sleep(Duration::from_millis(500)));
-        let mut buf = Vec::new();
         let b = select! {
             r = serial.read_u8() => r?,
             _ = &mut sleep => {
@@ -40,6 +40,8 @@ async fn echo(serial: &mut SerialStream) -> Result<()> {
         if let Some(f) = out_frame {
             println!("Frame returned: {f:?}");
             buf.clear();
+            break;
         }
     }
+    Ok(())
 }
