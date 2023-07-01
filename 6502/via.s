@@ -42,8 +42,8 @@ VIA_IFR  = __VIA_START__ + $0D
 VIA_IER  = __VIA_START__ + $0E
 VIA_PORTA_NOHS  = __VIA_START__ + $0F
 
-  ; Start 5ms clock, 10000 cycles @ 1MHz
-  ; 2 cycles for starting the interrupt = 9998 wait = $270E
+; Start 10ms clock, 10000 cycles @ 1MHz
+; 2 cycles for starting the interrupt = 9998 wait = $270E
 TIMER_CYCLES = $270E
 ;TIMER_CYCLES = $FFFF
 
