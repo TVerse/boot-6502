@@ -2,7 +2,7 @@
 .import delay
 .import DEFAULT_DDRA
 .import DEFAULT_DDRB
-.import init_via
+.import via_init
 
 .import VIA_PORTB
 .import VIA_PORTA

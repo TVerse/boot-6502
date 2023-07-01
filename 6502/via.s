@@ -7,7 +7,7 @@
 .export delay
 .export DEFAULT_DDRA
 .export DEFAULT_DDRB
-.export init_via
+.export via_init
 .export VIA_PORTB
 .export VIA_PORTA
 .export VIA_DDRB
@@ -53,7 +53,7 @@ DEFAULT_DDRA = %11111111
 ; PB6 for TX pulse count, rest LCD
 DEFAULT_DDRB = %10111111
 
-init_via:
+via_init:
  ; Set data direction
     lda #DEFAULT_DDRA
     sta VIA_DDRA

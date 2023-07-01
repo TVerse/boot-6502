@@ -27,21 +27,26 @@ copy_data:
     sta tmp1
     ldy #$00
 
+    ; After the fallthrough, X is -low_byte_data_size, tmp1 is -high_byte_data_size
 @bump_low_counter:
     inx
     beq @bump_high_counter
 
 @copy_loop:
+    ; Copy one page at a time through Y, keeping counters in sync
     lda (ptr1), y
     sta (ptr2), y
     iny
     bne @bump_low_counter
+    ; If Y==0, we've copied a page. Go to next page.
     inc ptr1+1
     inc ptr2+1
     bra @bump_low_counter
 
 @bump_high_counter:
     inc tmp1
+    ; We only get here through bump_low_counter.
+    ; Since we count up from negative, if this hits zero we're done.
     bne @copy_loop
 
     rts
