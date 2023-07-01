@@ -21,10 +21,8 @@ DATA = %00111100
 ; Requires a 10ms timer to be running
 initialize_lcd:
   ; Reset
-    inc VIA_PORTA
     literal_8bit 13
     jsr delay
-    inc VIA_PORTA
     lda #%00110000
     jsr lcd_send_upper_nibble
     literal_8bit 3
@@ -44,21 +42,26 @@ initialize_lcd:
     jsr delay
 
   ; Software initialize
+  ; 4-bit, 2-line, font 0
     lda #%00101000
     jsr lcd_instruction
-    lda #%00001000
+  ; Display on, cursor off, blink off
+    lda #%00001100
     jsr lcd_instruction
+  ; Clear display
     lda #%00000001
     jsr lcd_instruction
 
     literal_8bit 100
     jsr delay
 
+  ; Increment, no shift
     lda #%00000110
     jsr lcd_instruction
     rts
 
 lcd_instruction:
+    jsr wait_lcd_ready
     pha
     jsr lcd_send_upper_nibble
     pla
@@ -76,16 +79,24 @@ wait_lcd_ready:
     sta VIA_PORTB
     eor #E
     sta VIA_PORTB
-    bit VIA_PORTB
+    eor #E
+    sta VIA_PORTB
+  ; TODO figure out a way to replace this with BIT again
+  ; Can't use PB6 anymore due to VIA
+    lda VIA_PORTB
+    pha
     lda #RW
     sta VIA_PORTB
     eor #E
     sta VIA_PORTB
-    bvs @poll
+    pla
+    and #%00100000
+    cmp #%00100000
+    bne @poll
     lda #RW
     sta VIA_PORTB
     pla
-    sta VIA_PORTB
+    sta VIA_DDRB
     pla
     rts
 

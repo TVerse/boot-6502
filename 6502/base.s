@@ -25,7 +25,6 @@ reset_base:
 
     jsr init_via
 
-    inc VIA_PORTA
 
   ; Enable interrupts
     cli
@@ -53,11 +52,12 @@ reset_base:
     jsr delay
 
 loop:
-    jsr acia_block_handle_message
+    ;jsr acia_block_handle_message
     wai
     jmp loop
 
 nmi_base:
+    rti
     pha
 ;  lda ACIA_STATUS_RESET_REGISTER
 ;    and #%00001000
@@ -85,7 +85,6 @@ irq_base:
   ; ASL ; CA2
     bra @done
 @timer:
-    inc VIA_PORTA
     bit VIA_T1CL
     inc TEN_MS_COUNTER_ADDR
     bne @no_overflow

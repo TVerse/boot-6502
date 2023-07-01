@@ -85,7 +85,6 @@ init_via:
 ; ( 10ms_cycle_count -- )
 ; Clobbers A
 delay:
-    inc VIA_PORTA
     clc
     lda TEN_MS_COUNTER_ADDR
     adc 0, X
@@ -95,7 +94,6 @@ delay:
     sta 1, X
 @loop:
     wai
-    inc VIA_PORTA
     lda 0, X
     cmp TEN_MS_COUNTER_ADDR
     bne @loop
