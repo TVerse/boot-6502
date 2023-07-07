@@ -4,6 +4,7 @@
 .include "acia.inc"
 .include "zeropage.inc"
 .include "memory.inc"
+.include "error.inc"
 
 .import TEN_MS_COUNTER_ADDR
 
@@ -51,13 +52,15 @@ reset_base:
     jsr delay
 
 loop:
-    ;jsr acia_block_handle_message
+    literal initialized_base
+    jmp error
+    jsr acia_block_handle_message
     wai
     jmp loop
 
 nmi_base:
     pha
-    lda ACIA_STATUS_RESET_REGISTER
+    lda ACIA_STATUS
     and #%00001000
     beq @done
     phy
